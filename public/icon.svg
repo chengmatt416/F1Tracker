@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#15151E"/>
+  <path d="M120 256 L220 120 L420 120 L320 256 Z" fill="#E8002D"/>
+  <path d="M200 392 L300 256 L500 256 L400 392 Z" fill="#FFFFFF"/>
+  <text x="256" y="460" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">F1 TRACKER</text>
+</svg>

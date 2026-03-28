@@ -12,6 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        includeAssets: ['icon.svg'],
         manifest: {
           name: 'F1 Tracker Pro',
           short_name: 'F1 Tracker',
@@ -21,14 +22,20 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://media.formula1.com/image/upload/f_auto/q_auto/v1677244984/content/dam/fom-website/manual/Misc/2023-pre-season/F1_logo.png',
+              src: '/icon.svg',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/svg+xml'
             },
             {
-              src: 'https://media.formula1.com/image/upload/f_auto/q_auto/v1677244984/content/dam/fom-website/manual/Misc/2023-pre-season/F1_logo.png',
+              src: '/icon.svg',
               sizes: '512x512',
-              type: 'image/png'
+              type: 'image/svg+xml'
+            },
+            {
+              src: '/icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'any maskable'
             }
           ]
         }
