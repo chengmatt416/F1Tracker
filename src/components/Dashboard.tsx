@@ -138,11 +138,25 @@ export function Dashboard() {
               return (
                 <div className="mt-6 relative">
                   <div className="absolute right-0 bottom-0 w-32 h-32 opacity-10">
-                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" />
+                    <img 
+                      src={team.logo} 
+                      alt={team.name} 
+                      className="w-full h-full object-contain" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
                   </div>
                   <div className="flex items-end gap-4 relative z-10">
                     <div className="w-20 h-20 rounded-full overflow-hidden border-2" style={{ borderColor: team.color }}>
-                      <img src={winner.image} alt={winner.name} className="w-full h-full object-cover bg-gray-800" />
+                      <img 
+                        src={winner.image} 
+                        alt={winner.name} 
+                        className="w-full h-full object-cover bg-gray-800" 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/fallback.png.transform/2col/image.png';
+                        }}
+                      />
                     </div>
                     <div>
                       <p className="text-3xl font-display font-bold text-white uppercase">{winner.name}</p>

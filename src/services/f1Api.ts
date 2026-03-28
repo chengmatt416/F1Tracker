@@ -7,24 +7,49 @@ const OPENF1_BASE = 'https://api.openf1.org/v1';
 
 export async function getDriverStandings(): Promise<Driver[]> {
   try {
-    const res = await fetch(`${JOLPI_BASE}/current/driverStandings.json`);
-    const data = await res.json();
+    const [jolpiRes, openF1Res] = await Promise.all([
+      fetch(`${JOLPI_BASE}/current/driverStandings.json`),
+      fetch(`${OPENF1_BASE}/drivers?session_key=latest`).catch(() => null)
+    ]);
+    
+    const data = await jolpiRes.json();
+    let openF1Drivers: any[] = [];
+    if (openF1Res && openF1Res.ok) {
+      openF1Drivers = await openF1Res.json();
+    }
+    
     const standings = data.MRData.StandingsTable.StandingsLists[0]?.DriverStandings || [];
     
     return standings.map((d: any) => {
       const lastName = d.Driver.familyName.toLowerCase();
-      const imageKey = Object.keys(DRIVER_IMAGES).find(k => lastName.includes(k));
+      const number = parseInt(d.Driver.permanentNumber) || 0;
+      
+      // Try to find driver in OpenF1 by number or last name
+      const openF1Driver = openF1Drivers.find((od: any) => 
+        od.driver_number === number || 
+        (od.last_name && od.last_name.toLowerCase() === lastName)
+      );
+      
+      let image = DEFAULT_DRIVER_IMAGE;
+      if (openF1Driver && openF1Driver.headshot_url) {
+        // OpenF1 headshot URLs often end with .transform/1col/image.png which is small.
+        // We can replace it with 2col for better quality.
+        image = openF1Driver.headshot_url.replace('1col', '2col');
+      } else {
+        const imageKey = Object.keys(DRIVER_IMAGES).find(k => lastName.includes(k));
+        if (imageKey) image = DRIVER_IMAGES[imageKey];
+      }
       
       return {
         id: d.Driver.driverId,
         name: `${d.Driver.givenName} ${d.Driver.familyName}`,
-        number: parseInt(d.Driver.permanentNumber) || 0,
+        number,
         teamId: d.Constructors[0]?.constructorId || '',
         points: parseFloat(d.points),
         wins: parseInt(d.wins),
         podiums: 0, // Jolpi doesn't provide podiums easily
         country: d.Driver.nationality,
-        image: imageKey ? DRIVER_IMAGES[imageKey] : DEFAULT_DRIVER_IMAGE
+        image
       };
     });
   } catch (error) {
@@ -41,7 +66,24 @@ export async function getConstructorStandings(): Promise<Team[]> {
     
     return standings.map((t: any) => {
       const teamId = t.Constructor.constructorId.toLowerCase();
-      const fallbackKey = Object.keys(TEAM_FALLBACKS).find(k => teamId.includes(k) || t.Constructor.name.toLowerCase().includes(k)) || 'red_bull';
+      const teamName = t.Constructor.name.toLowerCase();
+      
+      // Better matching logic to prevent 'rb' matching 'red_bull' incorrectly
+      let fallbackKey = 'red_bull';
+      for (const key of Object.keys(TEAM_FALLBACKS)) {
+        const normalizedKey = key.replace('_', '');
+        if (
+          teamId === key || 
+          teamId === normalizedKey ||
+          teamName.includes(key.replace('_', ' ')) ||
+          (key === 'rb' && (teamId === 'rb' || teamName === 'rb' || teamName.includes('racing bulls'))) ||
+          (key === 'sauber' && (teamId.includes('sauber') || teamName.includes('sauber') || teamName.includes('kick') || teamName.includes('stake')))
+        ) {
+          fallbackKey = key;
+          break;
+        }
+      }
+      
       const fallback = TEAM_FALLBACKS[fallbackKey] || TEAM_FALLBACKS['red_bull'];
       
       return {

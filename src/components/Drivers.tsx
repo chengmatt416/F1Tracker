@@ -54,12 +54,22 @@ export function Drivers() {
                   {driver.number}
                 </div>
                 <div className="absolute top-4 right-4 w-12 h-12 opacity-20 group-hover:opacity-40 transition-opacity">
-                  <img src={team?.logo} alt={team?.name} className="w-full h-full object-contain" />
+                  <img 
+                    src={team?.logo} 
+                    alt={team?.name} 
+                    className="w-full h-full object-contain" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
                 </div>
                 <img 
                   src={driver.image} 
                   alt={driver.name} 
                   className="h-full object-cover object-bottom drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/fallback.png.transform/2col/image.png';
+                  }}
                 />
               </div>
               

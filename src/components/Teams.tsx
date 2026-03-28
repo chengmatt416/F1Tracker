@@ -50,7 +50,14 @@ export function Teams() {
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center gap-6">
                   <div className="w-20 h-20 bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
-                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" />
+                    <img 
+                      src={team.logo} 
+                      alt={team.name} 
+                      className="w-full h-full object-contain" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
                   </div>
                   <div>
                     <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">{team.name}</h2>
@@ -72,6 +79,9 @@ export function Teams() {
                   src={team.carImage} 
                   alt={`${team.name} Car`} 
                   className="w-[120%] max-w-none h-auto object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700 ease-out"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
                 />
               </div>
 

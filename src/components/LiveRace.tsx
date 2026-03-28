@@ -146,7 +146,14 @@ export function LiveRace() {
         <div className="xl:col-span-2 space-y-6 flex flex-col">
           {/* Track Map */}
           <div className="bg-f1-dark rounded-2xl border border-f1-gray p-4 md:p-6 relative flex-1 min-h-[250px] md:min-h-[300px] flex items-center justify-center overflow-hidden">
-            <img src={currentRace.layoutImage} alt="Track Map" className="w-full h-full object-contain opacity-50" />
+            <img 
+              src={currentRace.layoutImage} 
+              alt="Track Map" 
+              className="w-full h-full object-contain opacity-50" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           </div>
 
           {/* Telemetry Dashboard */}
