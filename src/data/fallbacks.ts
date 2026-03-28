@@ -58,6 +58,12 @@ export const TEAM_FALLBACKS: Record<string, { color: string, logo: string, carIm
     logo: 'https://media.formula1.com/content/dam/fom-website/teams/2024/haas-f1-team-logo.png.transform/2col/image.png',
     carImage: 'https://media.formula1.com/d_team_car_fallback_image.png/content/dam/fom-website/teams/2024/haas-f1-team.png.transform/4col/image.png',
     principal: 'Ayao Komatsu'
+  },
+  'audi': {
+    color: '#000000',
+    logo: 'https://media.formula1.com/content/dam/fom-website/manual/Misc/Audi_Logo.png',
+    carImage: 'https://media.formula1.com/d_team_car_fallback_image.png/content/dam/fom-website/manual/Misc/Audi_Car.png',
+    principal: 'Mattia Binotto'
   }
 };
 

@@ -69,7 +69,7 @@ export async function getConstructorStandings(): Promise<Team[]> {
       const teamName = t.Constructor.name.toLowerCase();
       
       // Better matching logic to prevent 'rb' matching 'red_bull' incorrectly
-      let fallbackKey = 'red_bull';
+      let fallbackKey = '';
       for (const key of Object.keys(TEAM_FALLBACKS)) {
         const normalizedKey = key.replace('_', '');
         if (
@@ -77,14 +77,20 @@ export async function getConstructorStandings(): Promise<Team[]> {
           teamId === normalizedKey ||
           teamName.includes(key.replace('_', ' ')) ||
           (key === 'rb' && (teamId === 'rb' || teamName === 'rb' || teamName.includes('racing bulls'))) ||
-          (key === 'sauber' && (teamId.includes('sauber') || teamName.includes('sauber') || teamName.includes('kick') || teamName.includes('stake')))
+          (key === 'sauber' && (teamId.includes('sauber') || teamName.includes('sauber') || teamName.includes('kick') || teamName.includes('stake'))) ||
+          (key === 'audi' && (teamId.includes('audi') || teamName.includes('audi')))
         ) {
           fallbackKey = key;
           break;
         }
       }
       
-      const fallback = TEAM_FALLBACKS[fallbackKey] || TEAM_FALLBACKS['red_bull'];
+      const fallback = fallbackKey ? TEAM_FALLBACKS[fallbackKey] : {
+        color: '#ffffff',
+        logo: 'https://media.formula1.com/content/dam/fom-website/manual/Misc/F1_logo.png',
+        carImage: 'https://media.formula1.com/d_team_car_fallback_image.png/content/dam/fom-website/teams/fallback.png',
+        principal: 'N/A'
+      };
       
       return {
         id: t.Constructor.constructorId,
@@ -150,19 +156,37 @@ export async function getSchedule(): Promise<Race[]> {
 // OpenF1 Live Data (Latest Session)
 export async function getLiveSessionData() {
   try {
+    // Fetch latest session key first
+    const sessionRes = await fetch(`${OPENF1_BASE}/sessions?session_key=latest`);
+    const sessionData = await sessionRes.json();
+    const session = sessionData[0];
+    const sessionKey = session?.session_key || 'latest';
+
     // Fetch drivers for the latest session to get their info and colors
-    const driversRes = await fetch(`${OPENF1_BASE}/drivers?session_key=latest`);
-    const drivers = await driversRes.json();
+    const [driversRes, posRes, intRes, weatherRes] = await Promise.all([
+      fetch(`${OPENF1_BASE}/drivers?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/position?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/intervals?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/weather?session_key=${sessionKey}`)
+    ]);
 
-    // Fetch latest positions
-    const posRes = await fetch(`${OPENF1_BASE}/position?session_key=latest`);
-    const positions = await posRes.json();
+    const driversData = await driversRes.json();
+    const positionsData = await posRes.json();
+    const intervalsData = await intRes.json();
+    const weatherData = await weatherRes.json();
 
-    // Fetch intervals
-    const intRes = await fetch(`${OPENF1_BASE}/intervals?session_key=latest`);
-    const intervals = await intRes.json();
+    const drivers = Array.isArray(driversData) ? driversData : [];
+    const positions = Array.isArray(positionsData) ? positionsData : [];
+    const intervals = Array.isArray(intervalsData) ? intervalsData : [];
+    const weather = Array.isArray(weatherData) ? weatherData : [];
 
-    return { drivers, positions, intervals };
+    return { 
+      session,
+      drivers, 
+      positions, 
+      intervals,
+      weather: weather.length > 0 ? weather[weather.length - 1] : null
+    };
   } catch (error) {
     console.error('Error fetching live session data:', error);
     return null;
