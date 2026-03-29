@@ -26,6 +26,15 @@ export default function App() {
   const [showPWATest, setShowPWATest] = useState(false);
 
   useEffect(() => {
+    // Check if running in PWA standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    const hasShownTest = localStorage.getItem('f1_pwa_test_shown');
+
+    if (isStandalone && !hasShownTest) {
+      setShowPWATest(true);
+      localStorage.setItem('f1_pwa_test_shown', 'true');
+    }
+
     // Handle deep linking from notifications
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
@@ -45,7 +54,6 @@ export default function App() {
     // Handle PWA installation success
     const handleAppInstalled = () => {
       console.log('PWA was installed');
-      setShowPWATest(true);
       setShowInstallBanner(false);
     };
 

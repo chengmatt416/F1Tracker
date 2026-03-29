@@ -69,7 +69,7 @@ export function AIInsights() {
       contextString += "\nAnswer the user's question concisely, professionally, and with a bit of racing excitement. Use markdown for formatting if needed.";
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: `${contextString}\n\nUser: ${userMessage}`
       });
 

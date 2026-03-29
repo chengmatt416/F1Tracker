@@ -45,7 +45,7 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: 'Say "Gemini is online and ready for F1 analysis!" in a very short sentence.'
       });
       setGeminiTest({ status: 'success', message: response.text || 'Gemini responded successfully!' });
@@ -89,8 +89,8 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
             <div className="w-20 h-20 bg-f1-red/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-f1-red/20">
               <Zap className="w-10 h-10 text-f1-red" />
             </div>
-            <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider mb-2">PWA 安裝成功！</h2>
-            <p className="text-gray-400">系統正在進行核心功能自動化測試，確保您的極速體驗。</p>
+            <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider mb-2">PWA 啟動成功！</h2>
+            <p className="text-gray-400">偵測到您正在使用 PWA 模式，系統正在進行核心功能自動化測試。</p>
           </div>
 
           <div className="space-y-4 mb-10">
