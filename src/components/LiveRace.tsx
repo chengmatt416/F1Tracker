@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Zap, Timer, AlertTriangle, Loader2, Cloud, Wind, Thermometer, MapPin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getLiveSessionData, getSchedule } from '../services/f1Api';
+import { notificationService } from '../services/notificationService';
 import { Race } from '../types';
 
 function Countdown({ targetDate }: { targetDate: string }) {
@@ -54,6 +55,7 @@ export function LiveRace() {
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<any>(null);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const prevLeaderRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fetchRace = async () => {
@@ -76,6 +78,17 @@ export function LiveRace() {
           setSessionInfo(liveData.session);
 
           if (Array.isArray(liveData.positions) && liveData.positions.length > 0) {
+            // Check for leader change
+            const currentLeader = liveData.positions.find((p: any) => p.position === 1);
+            if (currentLeader && prevLeaderRef.current !== null && prevLeaderRef.current !== currentLeader.driver_number) {
+              const driverInfo = liveData.drivers.find((d: any) => d.driver_number === currentLeader.driver_number);
+              notificationService.sendNotification('🏁 領先位置更換！', {
+                body: `${driverInfo?.full_name || `Driver ${currentLeader.driver_number}`} 現在位居第一！`,
+                data: { url: '/?tab=live' }
+              });
+            }
+            prevLeaderRef.current = currentLeader?.driver_number || null;
+
             // Map OpenF1 data
             const latestPositions = new Map();
             liveData.positions.forEach((p: any) => {

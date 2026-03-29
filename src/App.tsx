@@ -13,13 +13,15 @@ import { Calendar } from './components/Calendar';
 import { AIInsights } from './components/AIInsights';
 import { motion, AnimatePresence } from 'motion/react';
 import { checkApiHealth } from './services/f1Api';
-import { AlertCircle, Download, X, RefreshCw, Car } from 'lucide-react';
+import { notificationService } from './services/notificationService';
+import { AlertCircle, Download, X, RefreshCw, Car, Bell } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isApiHealthy, setIsApiHealthy] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
 
   useEffect(() => {
     // PWA Install logic
@@ -30,6 +32,16 @@ export default function App() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Notification permission check
+    if (notificationService.getPermissionStatus() === 'default') {
+      // Show banner after 5 seconds
+      const timer = setTimeout(() => setShowNotificationBanner(true), 5000);
+      return () => clearTimeout(timer);
+    }
+
+    // Schedule daily news at 8:00 AM (simulated for demo)
+    notificationService.scheduleDailyNews(8, 0, '今日賽事預告：巴林大獎賽正賽即將於今晚 11 點開跑！');
 
     // API Health check logic
     const monitorHealth = async () => {
@@ -55,6 +67,17 @@ export default function App() {
     }
     setDeferredPrompt(null);
     setShowInstallBanner(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    const granted = await notificationService.requestPermission();
+    if (granted) {
+      notificationService.sendNotification('🔔 通知功能已開啟', {
+        body: '你將會收到賽事即時更新與每日新聞摘要。',
+        data: { url: '/' }
+      });
+    }
+    setShowNotificationBanner(false);
   };
 
   const handleFixServer = () => {
@@ -151,6 +174,42 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => setShowInstallBanner(false)}
+                  className="text-gray-500 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notification Banner */}
+      <AnimatePresence>
+        {showNotificationBanner && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 md:bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-96 z-50"
+          >
+            <div className="bg-f1-dark border border-f1-gray rounded-2xl p-4 shadow-2xl flex items-center gap-4">
+              <div className="w-12 h-12 bg-f1-purple rounded-xl flex items-center justify-center shrink-0">
+                <Bell className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-white font-bold text-sm">開啟即時賽況通知</h4>
+                <p className="text-gray-400 text-xs">第一時間獲得即時比數與新聞</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleEnableNotifications}
+                  className="bg-white text-black text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-200"
+                >
+                  開啟
+                </button>
+                <button 
+                  onClick={() => setShowNotificationBanner(false)}
                   className="text-gray-500 hover:text-white p-1"
                 >
                   <X className="w-4 h-4" />
