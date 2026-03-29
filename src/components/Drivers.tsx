@@ -57,6 +57,7 @@ export function Drivers() {
                   <img 
                     src={team?.logo} 
                     alt={team?.name} 
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-contain" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
@@ -66,6 +67,7 @@ export function Drivers() {
                 <img 
                   src={driver.image} 
                   alt={driver.name} 
+                  referrerPolicy="no-referrer"
                   className="h-full object-cover object-bottom drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/fallback.png.transform/2col/image.png';

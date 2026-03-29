@@ -38,8 +38,7 @@ export function Dashboard() {
           else setNextRace(scheduleData[scheduleData.length - 1]); // Fallback to last race if season over
           
           if (completed) {
-            // Add winner fallback since API doesn't have it in schedule
-            setLastRace({ ...completed, winnerId: driverData[0]?.id || 'VER' });
+            setLastRace(completed);
           }
         }
       } catch (error) {
@@ -86,7 +85,7 @@ export function Dashboard() {
           className="lg:col-span-2 bg-f1-dark rounded-2xl border border-f1-gray overflow-hidden relative group"
         >
           <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-500">
-            <img src={nextRace.layoutImage} alt="Circuit" className="w-full h-full object-cover object-center grayscale" />
+            <img src={nextRace.layoutImage} alt="Circuit" referrerPolicy="no-referrer" className="w-full h-full object-cover object-center grayscale" />
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-f1-dark via-f1-dark/80 to-transparent" />
           
@@ -143,6 +142,7 @@ export function Dashboard() {
                     <img 
                       src={team.logo} 
                       alt={team.name} 
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-contain" 
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -154,6 +154,7 @@ export function Dashboard() {
                       <img 
                         src={winner.image} 
                         alt={winner.name} 
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover bg-gray-800" 
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/fallback.png.transform/2col/image.png';

@@ -53,6 +53,7 @@ export function Teams() {
                     <img 
                       src={team.logo} 
                       alt={team.name} 
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-contain" 
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -78,6 +79,7 @@ export function Teams() {
                 <img 
                   src={team.carImage} 
                   alt={`${team.name} Car`} 
+                  referrerPolicy="no-referrer"
                   className="w-[120%] max-w-none h-auto object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700 ease-out"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';

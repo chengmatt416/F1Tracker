@@ -77,7 +77,7 @@ export function Calendar() {
                   </div>
                   
                   <div className="w-24 h-16 opacity-50 group-hover:opacity-100 transition-opacity">
-                    <img src={race.layoutImage} alt="Circuit Layout" className="w-full h-full object-contain" />
+                    <img src={race.layoutImage} alt="Circuit Layout" referrerPolicy="no-referrer" className="w-full h-full object-contain" />
                   </div>
                 </div>
 

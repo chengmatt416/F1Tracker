@@ -178,7 +178,7 @@ export function LiveRace() {
                   number: p.driver_number,
                   teamId: driverInfo ? driverInfo.team_name : 'Unknown',
                   position: p.position,
-                  gap: p.position === 1 ? 'Leader' : (intervalInfo?.gap_to_leader ? `+${intervalInfo.gap_to_leader.toFixed(3)}` : ''),
+                  gap: p.position === 1 ? 'Leader' : (intervalInfo?.gap_to_leader !== undefined && intervalInfo?.gap_to_leader !== null ? `+${Number(intervalInfo.gap_to_leader).toFixed(3)}` : ''),
                   teamColor: driverInfo ? `#${driverInfo.team_colour}` : '#ffffff',
                   lastLap: lapInfo ? lapInfo.lap_duration : null,
                   compound: stintInfo ? stintInfo.compound : null,
@@ -209,8 +209,9 @@ export function LiveRace() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatLapTime = (seconds: number | null) => {
-    if (!seconds) return '--:--.---';
+  const formatLapTime = (secondsInput: number | null | string) => {
+    const seconds = Number(secondsInput);
+    if (!seconds || isNaN(seconds)) return '--:--.---';
     const mins = Math.floor(seconds / 60);
     const secs = (seconds % 60).toFixed(3);
     return `${mins}:${secs.padStart(6, '0')}`;
@@ -306,6 +307,7 @@ export function LiveRace() {
             <img 
               src={currentRace.layoutImage} 
               alt="Track Layout" 
+              referrerPolicy="no-referrer"
               className="w-full h-full object-contain p-8 opacity-40 group-hover:scale-105 transition-transform duration-1000" 
             />
             <div className="absolute bottom-8 left-8 z-20">
@@ -350,13 +352,13 @@ export function LiveRace() {
                       </div>
                       <div className="flex gap-2 mt-0.5">
                         <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s1.color)}>
-                          S1: {driver.sectors.s1.time ? driver.sectors.s1.time.toFixed(1) : '--.-'}
+                          S1: {driver.sectors.s1.time ? Number(driver.sectors.s1.time).toFixed(1) : '--.-'}
                         </span>
                         <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s2.color)}>
-                          S2: {driver.sectors.s2.time ? driver.sectors.s2.time.toFixed(1) : '--.-'}
+                          S2: {driver.sectors.s2.time ? Number(driver.sectors.s2.time).toFixed(1) : '--.-'}
                         </span>
                         <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s3.color)}>
-                          S3: {driver.sectors.s3.time ? driver.sectors.s3.time.toFixed(1) : '--.-'}
+                          S3: {driver.sectors.s3.time ? Number(driver.sectors.s3.time).toFixed(1) : '--.-'}
                         </span>
                       </div>
                     </div>
@@ -382,6 +384,7 @@ export function LiveRace() {
               <img 
                 src={currentRace.layoutImage} 
                 alt="Track Map" 
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-contain opacity-50" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';

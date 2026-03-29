@@ -16,6 +16,8 @@ export interface Team {
   principal: string;
   base: string;
   points: number;
+  wins: number;
+  podiums: number;
   color: string;
   logo: string;
   carImage: string;

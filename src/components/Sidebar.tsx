@@ -61,7 +61,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-f1-red to-orange-500 p-[2px]">
               <div className="w-full h-full rounded-full bg-f1-dark flex items-center justify-center overflow-hidden">
-                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
               </div>
             </div>
             <div>

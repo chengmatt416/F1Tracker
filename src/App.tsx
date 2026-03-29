@@ -11,6 +11,7 @@ import { Drivers } from './components/Drivers';
 import { Teams } from './components/Teams';
 import { Calendar } from './components/Calendar';
 import { AIInsights } from './components/AIInsights';
+import { PWATestModal } from './components/PWATestModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { checkApiHealth } from './services/f1Api';
 import { notificationService } from './services/notificationService';
@@ -22,8 +23,16 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+  const [showPWATest, setShowPWATest] = useState(false);
 
   useEffect(() => {
+    // Handle deep linking from notifications
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+
     // PWA Install logic
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -32,6 +41,15 @@ export default function App() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Handle PWA installation success
+    const handleAppInstalled = () => {
+      console.log('PWA was installed');
+      setShowPWATest(true);
+      setShowInstallBanner(false);
+    };
+
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     // Notification permission check
     if (notificationService.getPermissionStatus() === 'default') {
@@ -54,6 +72,7 @@ export default function App() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
       clearInterval(healthInterval);
     };
   }, []);
@@ -219,6 +238,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PWATestModal isOpen={showPWATest} onClose={() => setShowPWATest(false)} />
     </div>
   );
 }
