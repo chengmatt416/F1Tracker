@@ -159,59 +159,84 @@ export async function getSchedule(): Promise<Race[]> {
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const [jolpi, openf1] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current/driverStandings.json`, { method: 'HEAD' }).catch(() => ({ ok: false })),
-      fetch(`${OPENF1_BASE}/sessions?session_key=latest`, { method: 'HEAD' }).catch(() => ({ ok: false }))
+      fetch(`${JOLPI_BASE}/current/driverStandings.json?limit=1`).catch(() => ({ ok: false })),
+      fetch(`${OPENF1_BASE}/sessions?session_key=latest`).catch(() => ({ ok: false }))
     ]);
-    return jolpi.ok || openf1.ok; // If at least one is up, we're partially healthy
-  } catch {
+    const isHealthy = jolpi.ok || openf1.ok;
+    if (!isHealthy) {
+      console.warn('API Health Check failed:', { jolpi: jolpi.ok, openf1: openf1.ok });
+    }
+    return isHealthy;
+  } catch (e) {
+    console.error('API Health Check error:', e);
     return false;
   }
 }
 
 export async function getLiveSessionData() {
   try {
-    // Fetch latest session key first
-    const sessionRes = await fetch(`${OPENF1_BASE}/sessions?session_key=latest`);
-    const sessionData = await sessionRes.json();
+    // Try to fetch latest session first
+    let sessionRes = await fetch(`${OPENF1_BASE}/sessions?session_key=latest`).catch(() => null);
+    let sessionData = sessionRes && sessionRes.ok ? await sessionRes.json() : [];
+
+    // Fallback: if latest fails or is empty, get the most recent sessions and pick the last one
+    if (!Array.isArray(sessionData) || sessionData.length === 0) {
+      console.log('Latest session query empty or failed, falling back to full sessions list...');
+      const allSessionsRes = await fetch(`${OPENF1_BASE}/sessions`).catch(() => null);
+      if (allSessionsRes && allSessionsRes.ok) {
+        const allSessions = await allSessionsRes.json();
+        if (Array.isArray(allSessions) && allSessions.length > 0) {
+          // Sort by date descending and pick the first one
+          sessionData = [allSessions[allSessions.length - 1]];
+        }
+      }
+    }
+
+    if (!Array.isArray(sessionData) || sessionData.length === 0) {
+      console.warn('No session found in OpenF1');
+      return null;
+    }
+
     const session = sessionData[0];
-    const sessionKey = session?.session_key || 'latest';
+    const sessionKey = session?.session_key;
 
-    // Fetch more data for timing and telemetry
-    const [driversRes, posRes, intRes, weatherRes, lapsRes, stintsRes, carRes] = await Promise.all([
-      fetch(`${OPENF1_BASE}/drivers?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/position?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/intervals?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/weather?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/laps?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/stints?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/car_data?session_key=${sessionKey}`)
+    if (!sessionKey) return null;
+
+    // To prevent huge data transfers, we only fetch the last 10 seconds of car data
+    // and we use a more resilient fetching strategy
+    const now = new Date();
+    const tenSecondsAgo = new Date(now.getTime() - 10000).toISOString();
+
+    const fetchJson = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        return await res.json();
+      } catch (e) {
+        console.warn(`Failed to fetch from ${url}:`, e);
+        return [];
+      }
+    };
+
+    const [drivers, positions, intervals, weatherData, laps, stints, carData] = await Promise.all([
+      fetchJson(`${OPENF1_BASE}/drivers?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/position?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/intervals?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/weather?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/laps?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/stints?session_key=${sessionKey}`),
+      fetchJson(`${OPENF1_BASE}/car_data?session_key=${sessionKey}&date>=${tenSecondsAgo}`)
     ]);
-
-    const driversData = await driversRes.json();
-    const positionsData = await posRes.json();
-    const intervalsData = await intRes.json();
-    const weatherData = await weatherRes.json();
-    const lapsData = await lapsRes.json();
-    const stintsData = await stintsRes.json();
-    const carDataRaw = await carRes.json();
-
-    const drivers = Array.isArray(driversData) ? driversData : [];
-    const positions = Array.isArray(positionsData) ? positionsData : [];
-    const intervals = Array.isArray(intervalsData) ? intervalsData : [];
-    const weather = Array.isArray(weatherData) ? weatherData : [];
-    const laps = Array.isArray(lapsData) ? lapsData : [];
-    const stints = Array.isArray(stintsData) ? stintsData : [];
-    const carData = Array.isArray(carDataRaw) ? carDataRaw : [];
 
     return { 
       session,
-      drivers, 
-      positions, 
-      intervals,
-      laps,
-      stints,
-      carData,
-      weather: weather.length > 0 ? weather[weather.length - 1] : null
+      drivers: Array.isArray(drivers) ? drivers : [], 
+      positions: Array.isArray(positions) ? positions : [], 
+      intervals: Array.isArray(intervals) ? intervals : [],
+      laps: Array.isArray(laps) ? laps : [],
+      stints: Array.isArray(stints) ? stints : [],
+      carData: Array.isArray(carData) ? carData : [],
+      weather: Array.isArray(weatherData) && weatherData.length > 0 ? weatherData[weatherData.length - 1] : null
     };
   } catch (error) {
     console.error('Error fetching live session data:', error);
