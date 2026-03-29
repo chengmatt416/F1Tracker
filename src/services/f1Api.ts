@@ -164,29 +164,41 @@ export async function getLiveSessionData() {
     const session = sessionData[0];
     const sessionKey = session?.session_key || 'latest';
 
-    // Fetch drivers for the latest session to get their info and colors
-    const [driversRes, posRes, intRes, weatherRes] = await Promise.all([
+    // Fetch more data for timing and telemetry
+    const [driversRes, posRes, intRes, weatherRes, lapsRes, stintsRes, carRes] = await Promise.all([
       fetch(`${OPENF1_BASE}/drivers?session_key=${sessionKey}`),
       fetch(`${OPENF1_BASE}/position?session_key=${sessionKey}`),
       fetch(`${OPENF1_BASE}/intervals?session_key=${sessionKey}`),
-      fetch(`${OPENF1_BASE}/weather?session_key=${sessionKey}`)
+      fetch(`${OPENF1_BASE}/weather?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/laps?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/stints?session_key=${sessionKey}`),
+      fetch(`${OPENF1_BASE}/car_data?session_key=${sessionKey}`)
     ]);
 
     const driversData = await driversRes.json();
     const positionsData = await posRes.json();
     const intervalsData = await intRes.json();
     const weatherData = await weatherRes.json();
+    const lapsData = await lapsRes.json();
+    const stintsData = await stintsRes.json();
+    const carDataRaw = await carRes.json();
 
     const drivers = Array.isArray(driversData) ? driversData : [];
     const positions = Array.isArray(positionsData) ? positionsData : [];
     const intervals = Array.isArray(intervalsData) ? intervalsData : [];
     const weather = Array.isArray(weatherData) ? weatherData : [];
+    const laps = Array.isArray(lapsData) ? lapsData : [];
+    const stints = Array.isArray(stintsData) ? stintsData : [];
+    const carData = Array.isArray(carDataRaw) ? carDataRaw : [];
 
     return { 
       session,
       drivers, 
       positions, 
       intervals,
+      laps,
+      stints,
+      carData,
       weather: weather.length > 0 ? weather[weather.length - 1] : null
     };
   } catch (error) {

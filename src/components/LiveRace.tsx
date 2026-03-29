@@ -89,12 +89,46 @@ export function LiveRace() {
               });
             }
 
+            const latestLaps = new Map();
+            if (Array.isArray(liveData.laps)) {
+              liveData.laps.forEach((l: any) => {
+                const existing = latestLaps.get(l.driver_number);
+                if (!existing || l.lap_number > existing.lap_number) {
+                  latestLaps.set(l.driver_number, l);
+                }
+              });
+            }
+
+            const latestStints = new Map();
+            if (Array.isArray(liveData.stints)) {
+              liveData.stints.forEach((s: any) => {
+                const existing = latestStints.get(s.driver_number);
+                if (!existing || s.stint_number > existing.stint_number) {
+                  latestStints.set(s.driver_number, s);
+                }
+              });
+            }
+
+            const latestCarData = new Map();
+            if (Array.isArray(liveData.carData)) {
+              liveData.carData.forEach((c: any) => {
+                latestCarData.set(c.driver_number, c);
+              });
+            }
+
             const mappedPositions = Array.from(latestPositions.values())
               .sort((a, b) => a.position - b.position)
               .map((p: any) => {
                 const driverInfo = Array.isArray(liveData.drivers) ? liveData.drivers.find((d: any) => d.driver_number === p.driver_number) : null;
                 const intervalInfo = latestIntervals.get(p.driver_number);
+                const lapInfo = latestLaps.get(p.driver_number);
+                const stintInfo = latestStints.get(p.driver_number);
+                const carInfo = latestCarData.get(p.driver_number);
                 
+                if (lapInfo?.lap_number > lap) {
+                  setLap(lapInfo.lap_number);
+                }
+
                 return {
                   id: p.driver_number.toString(),
                   name: driverInfo ? driverInfo.full_name : `Driver ${p.driver_number}`,
@@ -102,7 +136,13 @@ export function LiveRace() {
                   teamId: driverInfo ? driverInfo.team_name : 'Unknown',
                   position: p.position,
                   gap: p.position === 1 ? 'Leader' : (intervalInfo?.gap_to_leader ? `+${intervalInfo.gap_to_leader.toFixed(3)}` : ''),
-                  teamColor: driverInfo ? `#${driverInfo.team_colour}` : '#ffffff'
+                  teamColor: driverInfo ? `#${driverInfo.team_colour}` : '#ffffff',
+                  lastLap: lapInfo ? lapInfo.lap_duration : null,
+                  compound: stintInfo ? stintInfo.compound : null,
+                  speed: carInfo ? carInfo.speed : null,
+                  gear: carInfo ? carInfo.n_gear : null,
+                  rpm: carInfo ? carInfo.rpm : null,
+                  drs: carInfo ? carInfo.drs : null
                 };
               });
 
@@ -121,6 +161,24 @@ export function LiveRace() {
     return () => clearInterval(interval);
   }, []);
 
+  const formatLapTime = (seconds: number | null) => {
+    if (!seconds) return '--:--.---';
+    const mins = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(3);
+    return `${mins}:${secs.padStart(6, '0')}`;
+  };
+
+  const getCompoundColor = (compound: string | null) => {
+    switch (compound?.toUpperCase()) {
+      case 'SOFT': return 'bg-red-600';
+      case 'MEDIUM': return 'bg-yellow-500';
+      case 'HARD': return 'bg-white';
+      case 'INTERMEDIATE': return 'bg-green-600';
+      case 'WET': return 'bg-blue-600';
+      default: return 'bg-gray-600';
+    }
+  };
+
   if (loading || !currentRace) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -130,6 +188,7 @@ export function LiveRace() {
   }
 
   const isUpcoming = currentRace.status === 'upcoming';
+  const leader = positions[0];
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl mx-auto h-full flex flex-col">
@@ -233,12 +292,19 @@ export function LiveRace() {
                     </div>
                     <div className="w-1 h-8 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white truncate text-sm md:text-base">{driver.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-white truncate text-sm md:text-base">{driver.name}</p>
+                        {driver.compound && (
+                          <div className={cn("w-3 h-3 rounded-full flex items-center justify-center text-[8px] font-bold text-black", getCompoundColor(driver.compound))}>
+                            {driver.compound[0]}
+                          </div>
+                        )}
+                      </div>
                       <p className="text-[10px] md:text-xs text-gray-500 uppercase truncate">{driver.teamId}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-mono text-xs md:text-sm text-white">{driver.gap}</p>
-                      {index === 0 && <p className="text-[10px] text-f1-red font-bold uppercase">Interval</p>}
+                      <p className="text-[10px] text-gray-500 font-mono">{formatLapTime(driver.lastLap)}</p>
                     </div>
                   </motion.div>
                 );
@@ -263,6 +329,23 @@ export function LiveRace() {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
+              {/* Leader Telemetry Overlay */}
+              {leader && leader.speed && (
+                <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 flex gap-6">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold">Speed</p>
+                    <p className="text-xl font-display font-bold text-white">{leader.speed} <span className="text-xs font-mono text-gray-400">km/h</span></p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold">Gear</p>
+                    <p className="text-xl font-display font-bold text-f1-red">{leader.gear === 0 ? 'N' : leader.gear}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase font-bold">RPM</p>
+                    <p className="text-xl font-display font-bold text-white">{leader.rpm}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Telemetry Dashboard */}
