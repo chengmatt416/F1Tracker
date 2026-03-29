@@ -90,12 +90,33 @@ export function LiveRace() {
             }
 
             const latestLaps = new Map();
+            const driverBestSectors = new Map();
+            const sessionBestSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
+
             if (Array.isArray(liveData.laps)) {
               liveData.laps.forEach((l: any) => {
+                // Update latest lap
                 const existing = latestLaps.get(l.driver_number);
                 if (!existing || l.lap_number > existing.lap_number) {
                   latestLaps.set(l.driver_number, l);
                 }
+
+                // Update driver bests and session bests
+                const dBest = driverBestSectors.get(l.driver_number) || { s1: Infinity, s2: Infinity, s3: Infinity };
+                
+                if (l.duration_sector_1) {
+                  if (l.duration_sector_1 < dBest.s1) dBest.s1 = l.duration_sector_1;
+                  if (l.duration_sector_1 < sessionBestSectors.s1) sessionBestSectors.s1 = l.duration_sector_1;
+                }
+                if (l.duration_sector_2) {
+                  if (l.duration_sector_2 < dBest.s2) dBest.s2 = l.duration_sector_2;
+                  if (l.duration_sector_2 < sessionBestSectors.s2) sessionBestSectors.s2 = l.duration_sector_2;
+                }
+                if (l.duration_sector_3) {
+                  if (l.duration_sector_3 < dBest.s3) dBest.s3 = l.duration_sector_3;
+                  if (l.duration_sector_3 < sessionBestSectors.s3) sessionBestSectors.s3 = l.duration_sector_3;
+                }
+                driverBestSectors.set(l.driver_number, dBest);
               });
             }
 
@@ -125,9 +146,18 @@ export function LiveRace() {
                 const stintInfo = latestStints.get(p.driver_number);
                 const carInfo = latestCarData.get(p.driver_number);
                 
+                const dBest = driverBestSectors.get(p.driver_number);
+                
                 if (lapInfo?.lap_number > lap) {
                   setLap(lapInfo.lap_number);
                 }
+
+                const getSectorColor = (time: number, dBestTime: number, sBestTime: number) => {
+                  if (!time || time === Infinity) return 'text-gray-600';
+                  if (time <= sBestTime) return 'text-f1-purple'; // Purple: Session Best
+                  if (time <= dBestTime) return 'text-green-400'; // Green: Personal Best
+                  return 'text-yellow-400'; // Yellow: Slower
+                };
 
                 return {
                   id: p.driver_number.toString(),
@@ -142,7 +172,12 @@ export function LiveRace() {
                   speed: carInfo ? carInfo.speed : null,
                   gear: carInfo ? carInfo.n_gear : null,
                   rpm: carInfo ? carInfo.rpm : null,
-                  drs: carInfo ? carInfo.drs : null
+                  drs: carInfo ? carInfo.drs : null,
+                  sectors: {
+                    s1: { time: lapInfo?.duration_sector_1, color: getSectorColor(lapInfo?.duration_sector_1, dBest?.s1, sessionBestSectors.s1) },
+                    s2: { time: lapInfo?.duration_sector_2, color: getSectorColor(lapInfo?.duration_sector_2, dBest?.s2, sessionBestSectors.s2) },
+                    s3: { time: lapInfo?.duration_sector_3, color: getSectorColor(lapInfo?.duration_sector_3, dBest?.s3, sessionBestSectors.s3) }
+                  }
                 };
               });
 
@@ -300,7 +335,17 @@ export function LiveRace() {
                           </div>
                         )}
                       </div>
-                      <p className="text-[10px] md:text-xs text-gray-500 uppercase truncate">{driver.teamId}</p>
+                      <div className="flex gap-2 mt-0.5">
+                        <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s1.color)}>
+                          S1: {driver.sectors.s1.time ? driver.sectors.s1.time.toFixed(1) : '--.-'}
+                        </span>
+                        <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s2.color)}>
+                          S2: {driver.sectors.s2.time ? driver.sectors.s2.time.toFixed(1) : '--.-'}
+                        </span>
+                        <span className={cn("text-[9px] font-mono font-bold", driver.sectors.s3.color)}>
+                          S3: {driver.sectors.s3.time ? driver.sectors.s3.time.toFixed(1) : '--.-'}
+                        </span>
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-mono text-xs md:text-sm text-white">{driver.gap}</p>
