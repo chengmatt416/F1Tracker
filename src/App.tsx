@@ -100,7 +100,7 @@ export default function App() {
   const handleEnableNotifications = async () => {
     const granted = await notificationService.requestPermission();
     if (granted) {
-      notificationService.sendNotification('🔔 通知功能已開啟', {
+      await notificationService.sendNotification('🔔 通知功能已開啟', {
         body: '你將會收到賽事即時更新與每日新聞摘要。',
         data: { url: '/' }
       });

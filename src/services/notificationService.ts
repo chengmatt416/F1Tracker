@@ -34,21 +34,36 @@ export class NotificationService {
     return this.permission;
   }
 
-  public sendNotification(title: string, options?: NotificationOptions) {
+  public async sendNotification(title: string, options?: NotificationOptions) {
     if (this.permission === 'granted') {
-      const notification = new Notification(title, {
+      const notificationOptions = {
         icon: 'https://media.formula1.com/content/dam/fom-website/manual/Misc/F1_logo.png',
         badge: 'https://media.formula1.com/content/dam/fom-website/manual/Misc/F1_logo.png',
         ...options,
-      });
-
-      notification.onclick = () => {
-        window.focus();
-        if (options?.data?.url) {
-          window.location.href = options.data.url;
-        }
-        notification.close();
       };
+
+      try {
+        // Try to use Service Worker for notifications (required for mobile Chrome)
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          if (registration) {
+            await registration.showNotification(title, notificationOptions);
+            return;
+          }
+        }
+        
+        // Fallback to standard Notification API
+        const notification = new Notification(title, notificationOptions);
+        notification.onclick = () => {
+          window.focus();
+          if (options?.data?.url) {
+            window.location.href = options.data.url;
+          }
+          notification.close();
+        };
+      } catch (error) {
+        console.error('Error sending notification:', error);
+      }
     }
   }
 

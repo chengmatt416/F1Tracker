@@ -84,7 +84,7 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
           resultBody = `最新賽事結果：${latestRace.name}\n冠軍：${winner ? winner.name : latestRace.winnerId || '未知'}\n地點：${latestRace.country}`;
         }
 
-        notificationService.sendNotification('🧪 PWA 功能與賽事測試', {
+        await notificationService.sendNotification('🧪 PWA 功能與賽事測試', {
           body: resultBody,
           data: { url: '/' }
         });
