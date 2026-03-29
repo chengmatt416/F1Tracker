@@ -28,14 +28,18 @@ async function getRecentUncalculatedPoints(): Promise<{
       fetch(`${JOLPI_BASE}/current/sprint.json?limit=100`).catch(() => null)
     ]);
     
-    if (!jolpiResultsRes || !jolpiResultsRes.ok) return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
-    
     let jolpiResults;
-    try {
-      jolpiResults = await jolpiResultsRes.json();
-    } catch (e) {
-      console.error("Failed to parse Jolpi results", e);
-      return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
+    let latestJolpiRound = 0;
+    
+    if (jolpiResultsRes && jolpiResultsRes.ok) {
+      try {
+        jolpiResults = await jolpiResultsRes.json();
+        if (jolpiResults.MRData.RaceTable.Races.length > 0) {
+          latestJolpiRound = Math.max(...jolpiResults.MRData.RaceTable.Races.map((r: any) => parseInt(r.round)));
+        }
+      } catch (e) {
+        console.error("Failed to parse Jolpi results", e);
+      }
     }
 
     let jolpiSprint = { MRData: { RaceTable: { Races: [] } } };
@@ -45,14 +49,6 @@ async function getRecentUncalculatedPoints(): Promise<{
       } catch (e) {
         console.warn("Failed to parse Jolpi sprint data", e);
       }
-    }
-    
-    const completedRaces = jolpiResults.MRData.RaceTable.Races.length;
-    // We assume round numbers match sequentially.
-    // Let's get the latest round that has results in Jolpi
-    let latestJolpiRound = 0;
-    if (jolpiResults.MRData.RaceTable.Races.length > 0) {
-      latestJolpiRound = Math.max(...jolpiResults.MRData.RaceTable.Races.map((r: any) => parseInt(r.round)));
     }
 
     // 2. Get OpenF1 sessions
@@ -189,12 +185,57 @@ export async function getDriverStandings(): Promise<Driver[]> {
       getRecentUncalculatedPoints()
     ]);
     
-    if (!jolpiRes || !jolpiRes.ok) return [];
-    const data = await jolpiRes.json();
     let openF1Drivers: any[] = [];
     if (openF1Res && openF1Res.ok) {
       openF1Drivers = await openF1Res.json();
     }
+
+    if (!jolpiRes || !jolpiRes.ok) {
+      console.warn("Jolpi driver standings failed, falling back to OpenF1");
+      if (!openF1Drivers || openF1Drivers.length === 0) return [];
+      
+      // We use openF1Drivers and uncalculatedPoints to build the standings
+      // We need unique drivers
+      const uniqueDriversMap = new Map();
+      for (const od of openF1Drivers) {
+        if (!uniqueDriversMap.has(od.driver_number)) {
+          uniqueDriversMap.set(od.driver_number, od);
+        }
+      }
+      
+      const drivers = Array.from(uniqueDriversMap.values()).map((od: any) => {
+        const number = od.driver_number;
+        const lastName = od.last_name ? od.last_name.toLowerCase() : '';
+        
+        let image = DEFAULT_DRIVER_IMAGE;
+        if (od.headshot_url) {
+          image = od.headshot_url.replace('1col', '2col');
+        } else {
+          const imageKey = Object.keys(DRIVER_IMAGES).find(k => lastName.includes(k));
+          if (imageKey) image = DRIVER_IMAGES[imageKey];
+        }
+        
+        let points = uncalculatedPoints.driverPoints[number] || 0;
+        let wins = uncalculatedPoints.driverWins[number] || 0;
+        let podiums = uncalculatedPoints.driverPodiums[number] || 0;
+        
+        return {
+          id: od.name_acronym ? od.name_acronym.toLowerCase() : lastName,
+          name: od.full_name || `${od.first_name} ${od.last_name}`,
+          number,
+          teamId: od.team_name ? od.team_name.toLowerCase().replace(/\s+/g, '_') : '',
+          points,
+          wins,
+          podiums,
+          country: od.country_code || '',
+          image
+        };
+      });
+      
+      return drivers.sort((a: Driver, b: Driver) => b.points - a.points);
+    }
+    
+    const data = await jolpiRes.json();
     
     const standings = data.MRData.StandingsTable.StandingsLists[0]?.DriverStandings || [];
     
@@ -256,11 +297,90 @@ export async function getDriverStandings(): Promise<Driver[]> {
 
 export async function getConstructorStandings(): Promise<Team[]> {
   try {
-    const [res, uncalculatedPoints] = await Promise.all([
+    const [res, openF1Res, uncalculatedPoints] = await Promise.all([
       fetch(`${JOLPI_BASE}/current/constructorStandings.json`).catch(() => null),
+      fetch(`${OPENF1_BASE}/drivers?session_key=latest`).catch(() => null),
       getRecentUncalculatedPoints()
     ]);
-    if (!res || !res.ok) return [];
+    
+    let openF1Drivers: any[] = [];
+    if (openF1Res && openF1Res.ok) {
+      openF1Drivers = await openF1Res.json();
+    }
+
+    if (!res || !res.ok) {
+      console.warn("Jolpi constructor standings failed, falling back to OpenF1");
+      if (!openF1Drivers || openF1Drivers.length === 0) return [];
+      
+      const uniqueTeamsMap = new Map();
+      for (const od of openF1Drivers) {
+        if (od.team_name && !uniqueTeamsMap.has(od.team_name)) {
+          uniqueTeamsMap.set(od.team_name, od);
+        }
+      }
+      
+      const teams = Array.from(uniqueTeamsMap.values()).map((od: any) => {
+        const teamName = od.team_name.toLowerCase();
+        const teamId = teamName.replace(/\s+/g, '_');
+        
+        let fallbackKey = '';
+        for (const key of Object.keys(TEAM_FALLBACKS)) {
+          const normalizedKey = key.replace('_', '');
+          if (
+            teamId === key || 
+            teamId === normalizedKey ||
+            teamName.includes(key.replace('_', ' ')) ||
+            (key === 'rb' && (teamId === 'rb' || teamName === 'rb' || teamName.includes('racing bulls'))) ||
+            (key === 'sauber' && (teamId.includes('sauber') || teamName.includes('sauber') || teamName.includes('kick') || teamName.includes('stake'))) ||
+            (key === 'audi' && (teamId.includes('audi') || teamName.includes('audi')))
+          ) {
+            fallbackKey = key;
+            break;
+          }
+        }
+        
+        const fallback = fallbackKey ? TEAM_FALLBACKS[fallbackKey] : {
+          color: '#ffffff',
+          logo: 'https://media.formula1.com/content/dam/fom-website/manual/Misc/F1_logo.png',
+          carImage: 'https://media.formula1.com/d_team_car_fallback_image.png/content/dam/fom-website/teams/fallback.png',
+          principal: 'N/A'
+        };
+        
+        // Find points in uncalculatedPoints
+        let points = 0;
+        let wins = 0;
+        let podiums = 0;
+        
+        for (const [openF1TeamName, extraPoints] of Object.entries(uncalculatedPoints.teamPoints)) {
+          const openF1Lower = openF1TeamName.toLowerCase();
+          if (
+            openF1Lower.includes(teamName) || 
+            teamName.includes(openF1Lower) ||
+            (fallbackKey === 'rb' && (openF1Lower.includes('rb') || openF1Lower.includes('racing bulls'))) ||
+            (fallbackKey === 'audi' && openF1Lower.includes('audi')) ||
+            (fallbackKey === 'haas' && openF1Lower.includes('haas')) ||
+            (fallbackKey === 'red_bull' && openF1Lower.includes('red bull'))
+          ) {
+            points += extraPoints;
+            wins += uncalculatedPoints.teamWins[openF1TeamName] || 0;
+            podiums += uncalculatedPoints.teamPodiums[openF1TeamName] || 0;
+            break;
+          }
+        }
+        
+        return {
+          id: teamId,
+          name: od.team_name,
+          points,
+          wins,
+          podiums,
+          ...fallback
+        };
+      });
+      
+      return teams.sort((a: Team, b: Team) => b.points - a.points);
+    }
+    
     const data = await res.json();
     const standings = data.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings || [];
     
@@ -337,13 +457,55 @@ export async function getConstructorStandings(): Promise<Team[]> {
 }
 
 export async function getSchedule(): Promise<Race[]> {
+  const now = new Date();
   try {
     const [res, resultsRes] = await Promise.all([
       fetch(`${JOLPI_BASE}/current.json`).catch(() => null),
       fetch(`${JOLPI_BASE}/current/results.json?limit=100`).catch(() => null)
     ]);
     
-    if (!res || !res.ok) return [];
+    if (!res || !res.ok) {
+      console.warn("Jolpi schedule failed, falling back to OpenF1");
+      // Fallback to OpenF1
+      const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}&session_type=Race`).catch(() => null);
+      if (!openF1SessionsRes || !openF1SessionsRes.ok) return [];
+      
+      const sessions = await openF1SessionsRes.json();
+      
+      // Sort sessions by date
+      sessions.sort((a: any, b: any) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+      
+      return sessions.map((s: any, index: number) => {
+        const raceDate = new Date(s.date_start);
+        let status: 'upcoming' | 'completed' | 'live' = 'upcoming';
+        
+        if (raceDate < now) {
+          const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+          if (raceDate > threeHoursAgo) {
+            status = 'live';
+          } else {
+            status = 'completed';
+          }
+        }
+        
+        const country = s.country_name.toLowerCase();
+        const layoutKey = Object.keys(CIRCUIT_LAYOUTS).find(k => country.includes(k) || s.circuit_short_name.toLowerCase().includes(k));
+        
+        return {
+          id: (index + 1).toString(),
+          name: `${s.country_name} Grand Prix`,
+          circuit: s.circuit_short_name,
+          country: s.country_name,
+          date: s.date_start,
+          laps: 50, // Fallback
+          length: 300, // Fallback
+          status,
+          winnerId: undefined, // We don't have this easily without fetching positions for each
+          layoutImage: layoutKey ? CIRCUIT_LAYOUTS[layoutKey] : DEFAULT_CIRCUIT_LAYOUT
+        };
+      });
+    }
+    
     const data = await res.json();
     const races = data.MRData.RaceTable.Races || [];
     
@@ -351,8 +513,6 @@ export async function getSchedule(): Promise<Race[]> {
     if (resultsRes && resultsRes.ok) {
       resultsData = await resultsRes.json();
     }
-    
-    const now = new Date();
     
     const mappedRaces = races.map((r: any) => {
       const time = (r.time && r.time.trim() !== '') ? (r.time.endsWith('Z') ? r.time : `${r.time}Z`) : '00:00:00Z';
@@ -457,7 +617,71 @@ export async function getSchedule(): Promise<Race[]> {
 export async function getRaceResults(round: string): Promise<any[]> {
   try {
     const res = await fetch(`${JOLPI_BASE}/current/${round}/results.json`).catch(() => null);
-    if (!res || !res.ok) return [];
+    if (!res || !res.ok) {
+      console.warn(`Jolpi race results failed for round ${round}, falling back to OpenF1`);
+      
+      // Fallback to OpenF1
+      const now = new Date();
+      const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}&session_type=Race`).catch(() => null);
+      if (!openF1SessionsRes || !openF1SessionsRes.ok) return [];
+      
+      const sessions = await openF1SessionsRes.json();
+      sessions.sort((a: any, b: any) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+      
+      // Round is 1-indexed, so index is round - 1
+      const roundIndex = parseInt(round) - 1;
+      if (roundIndex < 0 || roundIndex >= sessions.length) return [];
+      
+      const session = sessions[roundIndex];
+      
+      const [positionsRes, driversRes] = await Promise.all([
+        fetch(`${OPENF1_BASE}/position?session_key=${session.session_key}`).catch(() => null),
+        fetch(`${OPENF1_BASE}/drivers?session_key=${session.session_key}`).catch(() => null)
+      ]);
+      
+      if (!positionsRes || !positionsRes.ok || !driversRes || !driversRes.ok) return [];
+      
+      const positionsData = await positionsRes.json();
+      const driversData = await driversRes.json();
+      
+      // Get final position for each driver
+      const finalPositions: Record<number, any> = {};
+      for (const pos of positionsData) {
+        const driverNum = pos.driver_number;
+        if (!finalPositions[driverNum] || new Date(pos.date) > new Date(finalPositions[driverNum].date)) {
+          finalPositions[driverNum] = pos;
+        }
+      }
+      
+      const racePointsMap: Record<number, number> = { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
+      
+      const results = [];
+      for (const driver of driversData) {
+        const driverNum = driver.driver_number;
+        const posData = finalPositions[driverNum];
+        if (!posData) continue;
+        
+        const position = posData.position;
+        const points = racePointsMap[position] || 0;
+        
+        results.push({
+          position: position.toString(),
+          points: points.toString(),
+          status: 'Finished', // OpenF1 doesn't easily give status like 'Retired' without more complex logic
+          Driver: {
+            driverId: driver.name_acronym ? driver.name_acronym.toLowerCase() : driver.last_name.toLowerCase(),
+            givenName: driver.first_name,
+            familyName: driver.last_name
+          },
+          Constructor: {
+            name: driver.team_name
+          }
+        });
+      }
+      
+      return results.sort((a, b) => parseInt(a.position) - parseInt(b.position));
+    }
+    
     const data = await res.json();
     return data.MRData.RaceTable.Races[0]?.Results || [];
   } catch (error) {

@@ -113,14 +113,16 @@ export default function App() {
     // Wait a bit to simulate fixing
     await new Promise(resolve => setTimeout(resolve, 2000));
     const healthy = await checkApiHealth();
-    setIsApiHealthy(healthy);
+    
+    // Force bypass if still failing, so user isn't blocked forever
+    setIsApiHealthy(true);
     setIsFixing(false);
+    
     if (healthy) {
-      // If fixed, maybe refresh data by toggling active tab or just letting it be
       console.log('Server connection fixed!');
     } else {
-      // If still not healthy, maybe the user wants a full reload as last resort
-      // but let's keep it simple for now and just show it's still failing
+      console.warn('Server still unhealthy, but bypassing block.');
+      // Optionally show a non-blocking toast here
     }
   };
 
@@ -171,7 +173,13 @@ export default function App() {
             exit={{ opacity: 0, scale: 0.9 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
           >
-            <div className="bg-f1-dark border border-f1-red/50 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl shadow-f1-red/20">
+            <div className="bg-f1-dark border border-f1-red/50 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl shadow-f1-red/20 relative">
+              <button 
+                onClick={() => setIsApiHealthy(true)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
               <div className="w-16 h-16 bg-f1-red/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <AlertCircle className="w-8 h-8 text-f1-red" />
               </div>
