@@ -96,7 +96,9 @@ export function Dashboard() {
                 Next Race
               </div>
               <div className="text-right">
-                <p className="text-gray-400 text-sm font-mono">{nextRace.date}</p>
+                <p className="text-gray-400 text-sm font-mono">
+                  {new Date(nextRace.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
                 <p className="text-white font-medium">{nextRace.country}</p>
               </div>
             </div>

@@ -193,7 +193,7 @@ export function LiveRace() {
             <h2 className="text-2xl md:text-3xl font-display font-bold text-white uppercase tracking-widest">Next Session Starts In</h2>
             <p className="text-gray-400">Prepare for the adrenaline</p>
           </div>
-          <Countdown targetDate={`${currentRace.date}T12:00:00Z`} />
+          <Countdown targetDate={currentRace.date} />
           <div className="w-full max-w-2xl aspect-video relative rounded-3xl overflow-hidden border border-f1-gray group">
             <div className="absolute inset-0 bg-gradient-to-t from-f1-darker via-transparent to-transparent z-10" />
             <img 

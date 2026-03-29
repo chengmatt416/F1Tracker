@@ -118,7 +118,9 @@ export async function getSchedule(): Promise<Race[]> {
     const now = new Date();
     
     return races.map((r: any) => {
-      const raceDate = new Date(`${r.date}T${r.time || '00:00:00Z'}`);
+      const time = (r.time && r.time.trim() !== '') ? (r.time.endsWith('Z') ? r.time : `${r.time}Z`) : '00:00:00Z';
+      const fullDate = `${r.date}T${time}`;
+      const raceDate = new Date(fullDate);
       let status: 'upcoming' | 'completed' | 'live' = 'upcoming';
       
       // Simple logic for status
@@ -140,7 +142,7 @@ export async function getSchedule(): Promise<Race[]> {
         name: r.raceName,
         circuit: r.Circuit.circuitName,
         country: r.Circuit.Location.country,
-        date: r.date,
+        date: fullDate,
         laps: 50, // Fallback
         length: 300, // Fallback
         status,
