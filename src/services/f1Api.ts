@@ -156,6 +156,18 @@ export async function getSchedule(): Promise<Race[]> {
 }
 
 // OpenF1 Live Data (Latest Session)
+export async function checkApiHealth(): Promise<boolean> {
+  try {
+    const [jolpi, openf1] = await Promise.all([
+      fetch(`${JOLPI_BASE}/current/driverStandings.json`, { method: 'HEAD' }).catch(() => ({ ok: false })),
+      fetch(`${OPENF1_BASE}/sessions?session_key=latest`, { method: 'HEAD' }).catch(() => ({ ok: false }))
+    ]);
+    return jolpi.ok || openf1.ok; // If at least one is up, we're partially healthy
+  } catch {
+    return false;
+  }
+}
+
 export async function getLiveSessionData() {
   try {
     // Fetch latest session key first
