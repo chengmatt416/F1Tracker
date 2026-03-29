@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, CheckCircle2, AlertCircle, Loader2, Zap, Bell, Globe, Play } from 'lucide-react';
-import { checkApiHealth } from '../services/f1Api';
+import { X, CheckCircle2, AlertCircle, Loader2, Zap, Bell, Globe, Play, RefreshCw } from 'lucide-react';
+import { checkApiHealth, getSchedule, getDriverStandings } from '../services/f1Api';
 import { notificationService } from '../services/notificationService';
 import { GoogleGenAI } from '@google/genai';
 import { cn } from '../lib/utils';
@@ -15,32 +15,96 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
   const [apiTest, setApiTest] = useState<TestResult>({ status: 'idle', message: 'Ready to test' });
   const [notificationTest, setNotificationTest] = useState<TestResult>({ status: 'idle', message: 'Ready to test' });
   const [geminiTest, setGeminiTest] = useState<TestResult>({ status: 'idle', message: 'Ready to test' });
+  
+  // Rate limiting state
+  const [testCount, setTestCount] = useState(0);
+  const [lastResetTime, setLastResetTime] = useState(Date.now());
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
+
+  const checkRateLimit = () => {
+    const now = Date.now();
+    if (now - lastResetTime > 60000) {
+      setTestCount(1);
+      setLastResetTime(now);
+      setRateLimitMessage(null);
+      return true;
+    }
+    if (testCount >= 10) {
+      setRateLimitMessage('已達每分鐘測試上限 (10次)，請稍後再試。');
+      return false;
+    }
+    setTestCount(prev => prev + 1);
+    return true;
+  };
 
   const runApiTest = async () => {
+    if (!checkRateLimit()) return;
     setApiTest({ status: 'loading', message: 'Checking API health...' });
-    const healthy = await checkApiHealth();
-    if (healthy) {
-      setApiTest({ status: 'success', message: 'All F1 APIs are online and responsive!' });
-    } else {
-      setApiTest({ status: 'error', message: 'Some APIs are unreachable. Check your connection.' });
+    try {
+      const [healthy, schedule] = await Promise.all([
+        checkApiHealth(),
+        getSchedule()
+      ]);
+      if (healthy) {
+        const completed = schedule.filter(r => r.status === 'completed');
+        const latest = completed[completed.length - 1];
+        setApiTest({ 
+          status: 'success', 
+          message: latest 
+            ? `All APIs online. Latest race: Round ${latest.id} (${latest.name})` 
+            : 'All F1 APIs are online and responsive!' 
+        });
+      } else {
+        setApiTest({ status: 'error', message: 'Some APIs are unreachable. Check your connection.' });
+      }
+    } catch (e) {
+      setApiTest({ status: 'error', message: 'API check failed. Network error.' });
     }
   };
 
   const runNotificationTest = async () => {
-    setNotificationTest({ status: 'loading', message: 'Requesting permission...' });
-    const granted = await notificationService.requestPermission();
-    if (granted) {
-      notificationService.sendNotification('🧪 PWA 功能測試', {
-        body: '這是一則測試通知，恭喜你已成功開啟通知功能！',
-        data: { url: '/' }
-      });
-      setNotificationTest({ status: 'success', message: 'Notification permission granted and test sent!' });
-    } else {
-      setNotificationTest({ status: 'error', message: 'Notification permission denied.' });
+    if (!checkRateLimit()) return;
+    setNotificationTest({ status: 'loading', message: 'Fetching race results & requesting permission...' });
+    
+    try {
+      const [granted, schedule, standings] = await Promise.all([
+        notificationService.requestPermission(),
+        getSchedule(),
+        getDriverStandings()
+      ]);
+
+      if (granted) {
+        // Find the latest completed race
+        const completedRaces = schedule.filter(r => r.status === 'completed');
+        const latestRace = completedRaces[completedRaces.length - 1];
+        
+        let resultBody = '這是一則測試通知，恭喜你已成功開啟通知功能！';
+        if (latestRace) {
+          const winner = standings.find(d => d.id === latestRace.winnerId);
+          resultBody = `最新賽事結果：${latestRace.name}\n冠軍：${winner ? winner.name : latestRace.winnerId || '未知'}\n地點：${latestRace.country}`;
+        }
+
+        notificationService.sendNotification('🧪 PWA 功能與賽事測試', {
+          body: resultBody,
+          data: { url: '/' }
+        });
+        setNotificationTest({ 
+          status: 'success', 
+          message: latestRace 
+            ? `最新賽事：${latestRace.name} (${latestRace.country})` 
+            : 'Notification sent successfully!' 
+        });
+      } else {
+        setNotificationTest({ status: 'error', message: 'Notification permission denied.' });
+      }
+    } catch (error) {
+      console.error('Notification Test Error:', error);
+      setNotificationTest({ status: 'error', message: 'Failed to run notification test.' });
     }
   };
 
   const runGeminiTest = async () => {
+    if (!checkRateLimit()) return;
     setGeminiTest({ status: 'loading', message: 'Connecting to Gemini...' });
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -60,6 +124,13 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
     runNotificationTest();
     runGeminiTest();
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      // Run once on open
+      runAllTests();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -95,7 +166,7 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
 
           <div className="space-y-4 mb-10">
             {/* API Test */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4 relative group">
               <div className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                 apiTest.status === 'success' ? "bg-green-500/20 text-green-500" : 
@@ -107,13 +178,24 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                 <h4 className="text-white font-bold">F1 Data APIs</h4>
                 <p className="text-sm text-gray-400">{apiTest.message}</p>
               </div>
-              {apiTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-blue-500" /> : 
-               apiTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
-               apiTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+              <div className="flex items-center gap-3">
+                {apiTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-blue-500" /> : 
+                 apiTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
+                 apiTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+                
+                <button 
+                  onClick={runApiTest}
+                  disabled={apiTest.status === 'loading'}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                  title="手動執行測試"
+                >
+                  <RefreshCw className={cn("w-5 h-5", apiTest.status === 'loading' && "animate-spin")} />
+                </button>
+              </div>
             </div>
 
             {/* Notification Test */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4 relative group">
               <div className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                 notificationTest.status === 'success' ? "bg-green-500/20 text-green-500" : 
@@ -122,16 +204,27 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                 <Bell className="w-6 h-6" />
               </div>
               <div className="flex-1">
-                <h4 className="text-white font-bold">Push Notifications</h4>
+                <h4 className="text-white font-bold">Push Notifications & Results</h4>
                 <p className="text-sm text-gray-400">{notificationTest.message}</p>
               </div>
-              {notificationTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-f1-purple" /> : 
-               notificationTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
-               notificationTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+              <div className="flex items-center gap-3">
+                {notificationTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-f1-purple" /> : 
+                 notificationTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
+                 notificationTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+                
+                <button 
+                  onClick={runNotificationTest}
+                  disabled={notificationTest.status === 'loading'}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                  title="手動執行測試"
+                >
+                  <RefreshCw className={cn("w-5 h-5", notificationTest.status === 'loading' && "animate-spin")} />
+                </button>
+              </div>
             </div>
 
             {/* Gemini Test */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4 relative group">
               <div className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                 geminiTest.status === 'success' ? "bg-green-500/20 text-green-500" : 
@@ -143,10 +236,31 @@ export function PWATestModal({ isOpen, onClose }: { isOpen: boolean, onClose: ()
                 <h4 className="text-white font-bold">Gemini AI Engine</h4>
                 <p className="text-sm text-gray-400">{geminiTest.message}</p>
               </div>
-              {geminiTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-f1-red" /> : 
-               geminiTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
-               geminiTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+              <div className="flex items-center gap-3">
+                {geminiTest.status === 'loading' ? <Loader2 className="w-6 h-6 animate-spin text-f1-red" /> : 
+                 geminiTest.status === 'success' ? <CheckCircle2 className="w-6 h-6 text-green-500" /> :
+                 geminiTest.status === 'error' ? <AlertCircle className="w-6 h-6 text-red-500" /> : null}
+                
+                <button 
+                  onClick={runGeminiTest}
+                  disabled={geminiTest.status === 'loading'}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                  title="手動執行測試"
+                >
+                  <RefreshCw className={cn("w-5 h-5", geminiTest.status === 'loading' && "animate-spin")} />
+                </button>
+              </div>
             </div>
+
+            {rateLimitMessage && (
+              <motion.p 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-f1-red text-sm text-center font-bold"
+              >
+                {rateLimitMessage}
+              </motion.p>
+            )}
           </div>
 
           <div className="flex gap-4">

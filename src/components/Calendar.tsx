@@ -1,13 +1,101 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Calendar as CalendarIcon, MapPin, Flag, CheckCircle2, Clock, Trophy, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Calendar as CalendarIcon, MapPin, Flag, CheckCircle2, Clock, Trophy, Loader2, X, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getSchedule } from '../services/f1Api';
+import { getSchedule, getRaceResults } from '../services/f1Api';
 import { Race } from '../types';
+
+interface RaceResultModalProps {
+  race: Race;
+  onClose: () => void;
+}
+
+function RaceResultModal({ race, onClose }: RaceResultModalProps) {
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      const data = await getRaceResults(race.id);
+      setResults(data);
+      setLoading(false);
+    };
+    fetchResults();
+  }, [race.id]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="bg-f1-dark border border-f1-gray rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="mb-8">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-white uppercase tracking-wider">{race.name}</h2>
+          <p className="text-f1-red font-bold uppercase tracking-widest text-sm mt-1">Race Results</p>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-10 h-10 text-f1-red animate-spin" />
+            <p className="text-gray-400 animate-pulse">Fetching results from track...</p>
+          </div>
+        ) : results.length > 0 ? (
+          <div className="space-y-2">
+            {results.map((result: any, idx: number) => (
+              <div 
+                key={result.Driver.driverId}
+                className={cn(
+                  "flex items-center gap-4 p-3 rounded-xl border transition-colors",
+                  idx === 0 ? "bg-yellow-500/10 border-yellow-500/30" : 
+                  idx === 1 ? "bg-gray-300/10 border-gray-300/30" :
+                  idx === 2 ? "bg-orange-500/10 border-orange-500/30" : "bg-white/5 border-white/10"
+                )}
+              >
+                <div className="w-8 text-center font-mono font-bold text-lg text-gray-400">
+                  {result.position}
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold uppercase tracking-wider">{result.Driver.givenName} {result.Driver.familyName}</p>
+                  <p className="text-xs text-gray-400 uppercase">{result.Constructor.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-mono font-bold">+{result.points} PTS</p>
+                  <p className="text-xs text-gray-500">{result.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-gray-400">No detailed results available for this round yet.</p>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export function Calendar() {
   const [races, setRaces] = useState<Race[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRace, setSelectedRace] = useState<Race | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,7 +126,6 @@ export function Calendar() {
         {races.map((race, index) => {
           const isCompleted = race.status === 'completed';
           const isLive = race.status === 'live';
-          const isUpcoming = race.status === 'upcoming';
           
           return (
             <motion.div 
@@ -57,7 +144,13 @@ export function Calendar() {
               </div>
               
               {/* Card */}
-              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl border border-f1-gray bg-f1-dark hover:border-white/20 transition-colors">
+              <div 
+                onClick={() => isCompleted && setSelectedRace(race)}
+                className={cn(
+                  "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl border border-f1-gray bg-f1-dark transition-all",
+                  isCompleted ? "hover:border-f1-red/50 cursor-pointer hover:bg-f1-gray/10" : "hover:border-white/20"
+                )}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -98,17 +191,20 @@ export function Calendar() {
                   </div>
                 </div>
 
-                {isCompleted && race.winnerId && (
-                  <div className="mt-4 pt-4 border-t border-f1-gray/50 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                      <Trophy className="w-4 h-4 text-yellow-500" />
+                {isCompleted && (
+                  <div className="mt-4 pt-4 border-t border-f1-gray/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-bold">Winner</p>
+                        <p className="text-sm font-medium text-white uppercase tracking-wider">
+                          {race.winnerId?.replace('_', ' ') || 'Results Available'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase font-bold">Winner</p>
-                      <p className="text-sm font-medium text-white uppercase tracking-wider">
-                        {race.winnerId.replace('_', ' ')}
-                      </p>
-                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-f1-red transition-colors" />
                   </div>
                 )}
               </div>
@@ -116,6 +212,15 @@ export function Calendar() {
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {selectedRace && (
+          <RaceResultModal 
+            race={selectedRace} 
+            onClose={() => setSelectedRace(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

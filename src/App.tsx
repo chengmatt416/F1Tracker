@@ -24,6 +24,7 @@ export default function App() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   const [showPWATest, setShowPWATest] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
 
   useEffect(() => {
     // Check if running in PWA standalone mode
@@ -107,8 +108,20 @@ export default function App() {
     setShowNotificationBanner(false);
   };
 
-  const handleFixServer = () => {
-    window.location.reload();
+  const handleFixServer = async () => {
+    setIsFixing(true);
+    // Wait a bit to simulate fixing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const healthy = await checkApiHealth();
+    setIsApiHealthy(healthy);
+    setIsFixing(false);
+    if (healthy) {
+      // If fixed, maybe refresh data by toggling active tab or just letting it be
+      console.log('Server connection fixed!');
+    } else {
+      // If still not healthy, maybe the user wants a full reload as last resort
+      // but let's keep it simple for now and just show it's still failing
+    }
   };
 
   const renderContent = () => {
@@ -132,7 +145,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-f1-darker text-f1-light font-sans selection:bg-f1-red selection:text-white pb-20 md:pb-0">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onOpenTestPanel={() => setShowPWATest(true)} />
       
       <main className="flex-1 md:ml-64 min-h-screen overflow-x-hidden">
         <AnimatePresence mode="wait">
@@ -166,9 +179,15 @@ export default function App() {
               <p className="text-gray-400 mb-8">偵測到與 F1 數據伺服器的連線不穩定，這可能會影響即時遙測數據的顯示。</p>
               <button 
                 onClick={handleFixServer}
-                className="w-full bg-f1-red hover:bg-f1-red/90 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+                disabled={isFixing}
+                className="w-full bg-f1-red hover:bg-f1-red/90 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
               >
-                <RefreshCw className="w-5 h-5" /> 一鍵修復連線
+                {isFixing ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+                {isFixing ? '正在修復連線...' : '一鍵修復連線'}
               </button>
             </div>
           </motion.div>

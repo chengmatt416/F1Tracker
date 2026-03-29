@@ -24,12 +24,28 @@ async function getRecentUncalculatedPoints(): Promise<{
 
     // 1. Get latest Jolpi results to know what's already calculated
     const [jolpiResultsRes, jolpiSprintRes] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current/results.json?limit=100`),
-      fetch(`${JOLPI_BASE}/current/sprint.json?limit=100`)
+      fetch(`${JOLPI_BASE}/current/results.json?limit=100`).catch(() => null),
+      fetch(`${JOLPI_BASE}/current/sprint.json?limit=100`).catch(() => null)
     ]);
     
-    const jolpiResults = await jolpiResultsRes.json();
-    const jolpiSprint = await jolpiSprintRes.json();
+    if (!jolpiResultsRes || !jolpiResultsRes.ok) return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
+    
+    let jolpiResults;
+    try {
+      jolpiResults = await jolpiResultsRes.json();
+    } catch (e) {
+      console.error("Failed to parse Jolpi results", e);
+      return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
+    }
+
+    let jolpiSprint = { MRData: { RaceTable: { Races: [] } } };
+    if (jolpiSprintRes && jolpiSprintRes.ok) {
+      try {
+        jolpiSprint = await jolpiSprintRes.json();
+      } catch (e) {
+        console.warn("Failed to parse Jolpi sprint data", e);
+      }
+    }
     
     const completedRaces = jolpiResults.MRData.RaceTable.Races.length;
     // We assume round numbers match sequentially.
@@ -41,9 +57,16 @@ async function getRecentUncalculatedPoints(): Promise<{
 
     // 2. Get OpenF1 sessions
     const now = new Date();
-    const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}`);
-    if (!openF1SessionsRes.ok) return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
-    const openF1Sessions = await openF1SessionsRes.json();
+    const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}`).catch(() => null);
+    if (!openF1SessionsRes || !openF1SessionsRes.ok) return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
+    
+    let openF1Sessions;
+    try {
+      openF1Sessions = await openF1SessionsRes.json();
+    } catch (e) {
+      console.error("Failed to parse OpenF1 sessions", e);
+      return { driverPoints, teamPoints, driverWins, teamWins, driverPodiums, teamPodiums };
+    }
 
     // Group OpenF1 sessions by meeting_key (which roughly corresponds to a round)
     // We need to find sessions that are 'Race' or 'Sprint', have ended, but their round is > latestJolpiRound
@@ -76,12 +99,12 @@ async function getRecentUncalculatedPoints(): Promise<{
       const pointsMap = isSprint ? sprintPointsMap : racePointsMap;
 
       const [positionsRes, driversRes, lapsRes] = await Promise.all([
-        fetch(`${OPENF1_BASE}/position?session_key=${session.session_key}`),
-        fetch(`${OPENF1_BASE}/drivers?session_key=${session.session_key}`),
+        fetch(`${OPENF1_BASE}/position?session_key=${session.session_key}`).catch(() => null),
+        fetch(`${OPENF1_BASE}/drivers?session_key=${session.session_key}`).catch(() => null),
         fetch(`${OPENF1_BASE}/laps?session_key=${session.session_key}`).catch(() => null)
       ]);
       
-      if (!positionsRes.ok || !driversRes.ok) continue;
+      if (!positionsRes || !positionsRes.ok || !driversRes || !driversRes.ok) continue;
       
       const positionsData = await positionsRes.json();
       const driversData = await driversRes.json();
@@ -161,11 +184,12 @@ async function getRecentUncalculatedPoints(): Promise<{
 export async function getDriverStandings(): Promise<Driver[]> {
   try {
     const [jolpiRes, openF1Res, uncalculatedPoints] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current/driverStandings.json`),
+      fetch(`${JOLPI_BASE}/current/driverStandings.json`).catch(() => null),
       fetch(`${OPENF1_BASE}/drivers?session_key=latest`).catch(() => null),
       getRecentUncalculatedPoints()
     ]);
     
+    if (!jolpiRes || !jolpiRes.ok) return [];
     const data = await jolpiRes.json();
     let openF1Drivers: any[] = [];
     if (openF1Res && openF1Res.ok) {
@@ -233,9 +257,10 @@ export async function getDriverStandings(): Promise<Driver[]> {
 export async function getConstructorStandings(): Promise<Team[]> {
   try {
     const [res, uncalculatedPoints] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current/constructorStandings.json`),
+      fetch(`${JOLPI_BASE}/current/constructorStandings.json`).catch(() => null),
       getRecentUncalculatedPoints()
     ]);
+    if (!res || !res.ok) return [];
     const data = await res.json();
     const standings = data.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings || [];
     
@@ -314,10 +339,11 @@ export async function getConstructorStandings(): Promise<Team[]> {
 export async function getSchedule(): Promise<Race[]> {
   try {
     const [res, resultsRes] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current.json`),
+      fetch(`${JOLPI_BASE}/current.json`).catch(() => null),
       fetch(`${JOLPI_BASE}/current/results.json?limit=100`).catch(() => null)
     ]);
     
+    if (!res || !res.ok) return [];
     const data = await res.json();
     const races = data.MRData.RaceTable.Races || [];
     
@@ -375,8 +401,8 @@ export async function getSchedule(): Promise<Race[]> {
       if (race.status === 'completed' && !race.winnerId) {
         try {
           // Find the corresponding OpenF1 session
-          const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}&session_type=Race`);
-          if (openF1SessionsRes.ok) {
+          const openF1SessionsRes = await fetch(`${OPENF1_BASE}/sessions?year=${now.getFullYear()}&session_type=Race`).catch(() => null);
+          if (openF1SessionsRes && openF1SessionsRes.ok) {
             const sessions = await openF1SessionsRes.json();
             // Match by country or circuit name roughly
             const session = sessions.find((s: any) => 
@@ -385,8 +411,8 @@ export async function getSchedule(): Promise<Race[]> {
             );
             
             if (session) {
-              const positionsRes = await fetch(`${OPENF1_BASE}/position?session_key=${session.session_key}`);
-              if (positionsRes.ok) {
+              const positionsRes = await fetch(`${OPENF1_BASE}/position?session_key=${session.session_key}`).catch(() => null);
+              if (positionsRes && positionsRes.ok) {
                 const positionsData = await positionsRes.json();
                 // Find driver with position 1
                 // Get final position for each driver
@@ -402,8 +428,8 @@ export async function getSchedule(): Promise<Race[]> {
                 if (winnerNumStr) {
                   const winnerNum = parseInt(winnerNumStr);
                   // We need to map driver number to driverId. We can fetch drivers from OpenF1
-                  const driversRes = await fetch(`${OPENF1_BASE}/drivers?session_key=${session.session_key}&driver_number=${winnerNum}`);
-                  if (driversRes.ok) {
+                  const driversRes = await fetch(`${OPENF1_BASE}/drivers?session_key=${session.session_key}&driver_number=${winnerNum}`).catch(() => null);
+                  if (driversRes && driversRes.ok) {
                     const driversData = await driversRes.json();
                     if (driversData.length > 0) {
                       // We just use the last name as a rough driverId fallback, or we can use the acronym
@@ -428,14 +454,26 @@ export async function getSchedule(): Promise<Race[]> {
   }
 }
 
+export async function getRaceResults(round: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${JOLPI_BASE}/current/${round}/results.json`).catch(() => null);
+    if (!res || !res.ok) return [];
+    const data = await res.json();
+    return data.MRData.RaceTable.Races[0]?.Results || [];
+  } catch (error) {
+    console.error('Error fetching race results:', error);
+    return [];
+  }
+}
+
 // OpenF1 Live Data (Latest Session)
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const [jolpi, openf1] = await Promise.all([
-      fetch(`${JOLPI_BASE}/current/driverStandings.json?limit=1`).catch(() => ({ ok: false })),
-      fetch(`${OPENF1_BASE}/sessions?session_key=latest`).catch(() => ({ ok: false }))
+      fetch(`${JOLPI_BASE}/current/driverStandings.json?limit=1`, { mode: 'cors' }).catch(() => ({ ok: false })),
+      fetch(`${OPENF1_BASE}/sessions?session_key=latest`, { mode: 'cors' }).catch(() => ({ ok: false }))
     ]);
-    const isHealthy = jolpi.ok || openf1.ok;
+    const isHealthy = (jolpi && jolpi.ok) || (openf1 && openf1.ok);
     if (!isHealthy) {
       console.warn('API Health Check failed:', { jolpi: jolpi.ok, openf1: openf1.ok });
     }

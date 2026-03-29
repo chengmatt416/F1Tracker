@@ -5,9 +5,10 @@ import { cn } from '../lib/utils';
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  onOpenTestPanel: () => void;
 }
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, onOpenTestPanel }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'live', label: 'Live Race', icon: Activity },
@@ -55,6 +56,14 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
               </button>
             );
           })}
+          
+          <button
+            onClick={onOpenTestPanel}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 mt-4 border-t border-f1-gray pt-6"
+          >
+            <Zap className="w-5 h-5 text-f1-purple" />
+            <span className="font-medium">Test Panel</span>
+          </button>
         </nav>
 
         <div className="p-6 border-t border-f1-gray">
@@ -100,6 +109,14 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             </button>
           );
         })}
+        
+        <button
+          onClick={onOpenTestPanel}
+          className="flex flex-col items-center justify-center w-16 h-14 rounded-xl relative transition-colors text-gray-400 hover:text-white"
+        >
+          <Zap className="w-5 h-5 mb-1 text-f1-purple" />
+          <span className="text-[10px] font-medium">Test</span>
+        </button>
       </div>
     </>
   );
