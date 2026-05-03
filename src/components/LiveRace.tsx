@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
+import { GlassCard } from './GlassCard';
 import { Activity, Zap, Timer, AlertTriangle, Loader2, Cloud, Wind, Thermometer, MapPin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getLiveSessionData, getSchedule } from '../services/f1Api';
@@ -55,6 +56,7 @@ export function LiveRace() {
   const [loading, setLoading] = useState(true);
   const [weather, setWeather] = useState<any>(null);
   const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const [edgeInsight, setEdgeInsight] = useState<string>("Analyzing live telemetry...");
   const prevLeaderRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -196,6 +198,22 @@ export function LiveRace() {
 
             if (mappedPositions.length > 0) {
               setPositions(mappedPositions);
+
+              // Edge Computing Intelligence: Local Data Aggregation & Analysis
+              let insight = "Monitoring telemetry for anomalies...";
+              const gapToSecond = Number(mappedPositions[1]?.gap?.replace('+', ''));
+              
+              if (gapToSecond && gapToSecond < 1.0) {
+                insight = `🏎️ Edge Alert: ${mappedPositions[1].name} is in DRS range of the leader ${mappedPositions[0].name} (${gapToSecond.toFixed(3)}s)!`;
+              } else if (liveData.weather?.rainfall === 1) {
+                insight = "🌧️ Edge Analysis: Rain detected on track layout. Strategy changes likely imminent.";
+              } else if (mappedPositions.some(p => p.sectors.s1.color === 'text-f1-purple' || p.sectors.s2.color === 'text-f1-purple' || p.sectors.s3.color === 'text-f1-purple')) {
+                const fastest = mappedPositions.find(p => p.sectors.s1.color === 'text-f1-purple' || p.sectors.s2.color === 'text-f1-purple' || p.sectors.s3.color === 'text-f1-purple');
+                insight = `🔥 Edge Insight: ${fastest?.name} is setting overall fastest micro-sectors, running at optimal operating window.`;
+              } else {
+                insight = `📊 Edge Summary: ${mappedPositions[0].name} is controlling the race pace dictating sector times.`;
+              }
+              setEdgeInsight(insight);
             }
           }
         }
@@ -245,52 +263,63 @@ export function LiveRace() {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             {currentRace.status === 'live' ? (
-              <div className="bg-f1-red text-white px-3 py-1 rounded-md text-sm font-bold uppercase tracking-wider flex items-center gap-2 animate-pulse">
+              <div className="bg-f1-red text-white px-3 py-1 rounded-md text-sm font-bold uppercase tracking-wider flex items-center gap-2 animate-pulse shadow-[0_0_15px_rgba(225,6,0,0.4)]">
                 <Activity className="w-4 h-4" /> LIVE
               </div>
             ) : (
-              <div className="bg-f1-gray text-white px-3 py-1 rounded-md text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1 rounded-md text-sm font-bold uppercase tracking-wider flex items-center gap-2 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                 <Timer className="w-4 h-4" /> {currentRace.status.toUpperCase()}
               </div>
             )}
             {currentRace.status === 'live' && (
-              <span className="text-gray-400 font-mono text-sm">LAP {lap}/{currentRace.laps}</span>
+              <span className="text-gray-300 font-mono text-sm bg-white/10 backdrop-blur-md px-2 py-0.5 rounded shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] border border-white/10">LAP {lap}/{currentRace.laps}</span>
             )}
             {sessionInfo && (
-              <span className="text-f1-red font-mono text-sm font-bold">{sessionInfo.session_name}</span>
+              <span className="text-f1-red font-mono text-sm font-bold drop-shadow-sm">{sessionInfo.session_name}</span>
             )}
           </div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold tracking-wider uppercase text-white">{currentRace.name}</h1>
-          <div className="flex items-center gap-2 text-gray-400 mt-1">
+          <h1 className="text-3xl md:text-5xl font-display font-bold tracking-wider uppercase text-white drop-shadow-sm">{currentRace.name}</h1>
+          <div className="flex items-center gap-2 text-gray-300 mt-1 drop-shadow-sm font-medium">
             <MapPin className="w-4 h-4" />
             <span className="text-sm">{currentRace.circuit}, {currentRace.country}</span>
           </div>
         </div>
         
-        <div className="flex gap-2 md:gap-4 w-full md:w-auto">
-          <div className="flex-1 md:flex-none bg-f1-dark px-4 md:px-6 py-3 rounded-xl border border-f1-gray text-center">
-            <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-              <Thermometer className="w-3 h-3" /> Track
-            </p>
-            <p className={cn("text-lg md:text-xl font-mono font-bold", weather ? "text-white" : "text-gray-600")}>
-              {weather ? `${weather.track_temperature}°C` : '--°C'}
-            </p>
-          </div>
-          <div className="flex-1 md:flex-none bg-f1-dark px-4 md:px-6 py-3 rounded-xl border border-f1-gray text-center">
-            <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-              <Cloud className="w-3 h-3" /> Air
-            </p>
-            <p className={cn("text-lg md:text-xl font-mono font-bold", weather ? "text-white" : "text-gray-600")}>
-              {weather ? `${weather.air_temperature}°C` : '--°C'}
-            </p>
-          </div>
-          <div className="hidden md:block bg-f1-dark px-4 md:px-6 py-3 rounded-xl border border-f1-gray text-center">
-            <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-              <Wind className="w-3 h-3" /> Humidity
-            </p>
-            <p className={cn("text-lg md:text-xl font-mono font-bold", weather ? "text-white" : "text-gray-600")}>
-              {weather ? `${weather.humidity}%` : '--%'}
-            </p>
+        <div className="flex flex-col gap-2 md:gap-4 w-full md:w-auto md:items-end">
+          {currentRace.status === 'live' && (
+            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] w-full max-w-sm">
+              <Zap className="w-5 h-5 text-f1-purple animate-pulse shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-gray-300 uppercase font-bold tracking-widest leading-none drop-shadow">Edge Computing AI</span>
+                <span className="text-xs font-mono text-blue-100">{edgeInsight}</span>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2 w-full md:w-auto">
+            <GlassCard tiltAmount={5} className="flex-1 md:flex-none px-4 md:px-6 py-3 rounded-2xl text-center transition-transform duration-300">
+              <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                <Thermometer className="w-3 h-3" /> Track
+              </p>
+              <p className={cn("text-lg md:text-xl font-mono font-bold drop-shadow-sm", weather ? "text-white" : "text-gray-500")}>
+                {weather ? `${weather.track_temperature}°C` : '--°C'}
+              </p>
+            </GlassCard>
+            <GlassCard tiltAmount={5} className="flex-1 md:flex-none px-4 md:px-6 py-3 rounded-2xl text-center transition-transform duration-300">
+              <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                <Cloud className="w-3 h-3" /> Air
+              </p>
+              <p className={cn("text-lg md:text-xl font-mono font-bold drop-shadow-sm", weather ? "text-white" : "text-gray-500")}>
+                {weather ? `${weather.air_temperature}°C` : '--°C'}
+              </p>
+            </GlassCard>
+            <GlassCard tiltAmount={5} className="hidden md:block px-4 md:px-6 py-3 rounded-2xl text-center transition-transform duration-300">
+              <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                <Wind className="w-3 h-3" /> Humidity
+              </p>
+              <p className={cn("text-lg md:text-xl font-mono font-bold drop-shadow-sm", weather ? "text-white" : "text-gray-500")}>
+                {weather ? `${weather.humidity}%` : '--%'}
+              </p>
+            </GlassCard>
           </div>
         </div>
       </header>
@@ -321,8 +350,8 @@ export function LiveRace() {
       {!isUpcoming && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1">
           {/* Leaderboard */}
-          <div className="xl:col-span-1 bg-f1-dark rounded-2xl border border-f1-gray overflow-hidden flex flex-col h-[400px] xl:h-auto">
-            <div className="p-4 border-b border-f1-gray bg-black/20 flex justify-between items-center shrink-0">
+          <div className="xl:col-span-1 ios-glass rounded-3xl overflow-hidden flex flex-col h-[400px] xl:h-auto">
+            <div className="p-4 border-b border-white/10 bg-black/40 flex justify-between items-center shrink-0">
               <h3 className="font-display font-bold text-xl uppercase tracking-wider">Live Timing</h3>
               <Timer className="w-5 h-5 text-gray-400" />
             </div>
@@ -380,19 +409,20 @@ export function LiveRace() {
           {/* Telemetry & Track Map */}
           <div className="xl:col-span-2 space-y-6 flex flex-col">
             {/* Track Map */}
-            <div className="bg-f1-dark rounded-2xl border border-f1-gray p-4 md:p-6 relative flex-1 min-h-[250px] md:min-h-[300px] flex items-center justify-center overflow-hidden">
+            <GlassCard tiltAmount={5} className="rounded-3xl p-4 md:p-6 relative flex-1 min-h-[250px] md:min-h-[300px] flex items-center justify-center overflow-hidden transition-transform duration-300 group">
+              <div className="absolute inset-0 bg-gradient-to-t from-f1-darker/50 to-transparent mix-blend-overlay" />
               <img 
                 src={currentRace.layoutImage} 
                 alt="Track Map" 
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-contain opacity-50" 
+                className="w-full h-full object-contain opacity-60 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover:scale-105 transition-transform duration-700" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
               {/* Leader Telemetry Overlay */}
               {leader && leader.speed && (
-                <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 flex gap-6">
+                <div className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-2xl border border-white/20 rounded-2xl p-4 flex gap-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-bold">Speed</p>
                     <p className="text-xl font-display font-bold text-white">{leader.speed} <span className="text-xs font-mono text-gray-400">km/h</span></p>
@@ -407,11 +437,11 @@ export function LiveRace() {
                   </div>
                 </div>
               )}
-            </div>
+            </GlassCard>
 
             {/* Telemetry Dashboard */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-f1-dark rounded-2xl border border-f1-gray p-4 md:p-5">
+              <GlassCard tiltAmount={8} className="rounded-3xl p-4 md:p-5 transition-transform duration-300">
                 <div className="flex justify-between items-center mb-2 md:mb-4">
                   <p className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-wider">Wind Speed</p>
                   <Wind className="w-4 h-4 text-blue-400" />
@@ -425,9 +455,9 @@ export function LiveRace() {
                 <p className="text-[10px] md:text-xs text-gray-600 mt-1 md:mt-2">
                   {weather ? `Direction: ${weather.wind_direction}°` : 'Waiting for data...'}
                 </p>
-              </div>
+              </GlassCard>
               
-              <div className="bg-f1-dark rounded-2xl border border-f1-gray p-4 md:p-5">
+              <GlassCard tiltAmount={8} className="rounded-3xl p-4 md:p-5 transition-transform duration-300">
                 <div className="flex justify-between items-center mb-2 md:mb-4">
                   <p className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-wider">Rain Risk</p>
                   <Cloud className="w-4 h-4 text-gray-400" />
@@ -440,9 +470,9 @@ export function LiveRace() {
                 <p className="text-[10px] md:text-xs text-gray-600 mt-1 md:mt-2">
                   {weather ? (weather.rainfall === 1 ? 'Rain detected' : 'Dry conditions') : 'Waiting for data...'}
                 </p>
-              </div>
+              </GlassCard>
 
-              <div className="col-span-2 md:col-span-1 bg-f1-dark rounded-2xl border border-f1-gray p-4 md:p-5">
+              <GlassCard tiltAmount={8} className="col-span-2 md:col-span-1 rounded-3xl p-4 md:p-5 transition-transform duration-300">
                 <div className="flex justify-between items-center mb-2 md:mb-4">
                   <p className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-wider">Pressure</p>
                   <Activity className="w-4 h-4 text-f1-red" />
@@ -456,7 +486,7 @@ export function LiveRace() {
                 <p className="text-[10px] md:text-xs text-gray-600 mt-1 md:mt-2">
                   {weather ? 'Atmospheric pressure' : 'Waiting for data...'}
                 </p>
-              </div>
+              </GlassCard>
             </div>
           </div>
         </div>

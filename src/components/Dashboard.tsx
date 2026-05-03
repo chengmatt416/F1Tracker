@@ -6,6 +6,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { getDriverStandings, getConstructorStandings, getSchedule } from '../services/f1Api';
 import { Driver, Team, Race } from '../types';
 
+import { GlassCard } from './GlassCard';
+
 export function Dashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -79,15 +81,15 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Next Race Card */}
-        <motion.div 
+        <GlassCard 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-2 bg-f1-dark rounded-2xl border border-f1-gray overflow-hidden relative group"
+          className="lg:col-span-2 rounded-3xl overflow-hidden relative group transition-all duration-300"
         >
           <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-500">
-            <img src={nextRace.layoutImage} alt="Circuit" referrerPolicy="no-referrer" className="w-full h-full object-cover object-center grayscale" />
+            <img src={nextRace.layoutImage} alt="Circuit" referrerPolicy="no-referrer" className="w-full h-full object-cover object-center grayscale mix-blend-overlay" />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-f1-dark via-f1-dark/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-f1-darker/90 via-f1-darker/50 to-transparent" />
           
           <div className="relative p-8 h-full flex flex-col justify-between">
             <div className="flex justify-between items-start">
@@ -116,15 +118,15 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </GlassCard>
 
         {/* Last Race Winner */}
         {lastRace && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <GlassCard 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="bg-f1-dark rounded-2xl border border-f1-gray p-6 flex flex-col justify-between"
+            className="rounded-3xl p-6 transition-all duration-300 flex flex-col justify-between group"
           >
             <div>
               <h3 className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-4">Last Race Winner</h3>
@@ -169,17 +171,17 @@ export function Dashboard() {
                 </div>
               );
             })()}
-          </motion.div>
+          </GlassCard>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Driver Standings */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        <GlassCard 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-f1-dark rounded-2xl border border-f1-gray p-6"
+          className="rounded-3xl p-6 transition-all duration-300"
         >
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-display font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -212,14 +214,14 @@ export function Dashboard() {
               );
             })}
           </div>
-        </motion.div>
+        </GlassCard>
 
         {/* Constructor Standings Chart */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        <GlassCard 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-f1-dark rounded-2xl border border-f1-gray p-6 flex flex-col"
+          className="rounded-3xl p-6 transition-all duration-300 flex flex-col"
         >
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-display font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -246,7 +248,7 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </GlassCard>
       </div>
     </div>
   );

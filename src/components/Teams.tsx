@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Users, MapPin, Trophy, Loader2 } from 'lucide-react';
 import { getConstructorStandings } from '../services/f1Api';
 import { Team } from '../types';
+import { GlassCard } from './GlassCard';
 
 export function Teams() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -35,15 +36,15 @@ export function Teams() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {teams.map((team, index) => (
-          <motion.div 
+          <GlassCard 
             key={team.id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-f1-dark rounded-3xl border border-f1-gray overflow-hidden relative group"
+            className="rounded-3xl overflow-hidden relative group transition-all duration-300 pointer-events-auto"
           >
-            <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
-              <div className="w-full h-full bg-gradient-to-br from-transparent to-white" style={{ backgroundColor: team.color }} />
+            <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 blur-2xl">
+              <div className="w-full h-full bg-gradient-to-br from-transparent to-white mix-blend-overlay" style={{ backgroundColor: team.color }} />
             </div>
             
             <div className="p-8 relative z-10">
@@ -61,10 +62,10 @@ export function Teams() {
                     />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider">{team.name}</h2>
+                    <h2 className="text-3xl font-display font-bold text-white uppercase tracking-wider drop-shadow-sm">{team.name}</h2>
                     <div className="flex items-center gap-2 text-gray-400 mt-1">
                       <MapPin className="w-4 h-4" />
-                      <span className="text-sm">{team.base}</span>
+                      <span className="text-sm drop-shadow-sm">{team.base}</span>
                     </div>
                   </div>
                 </div>
@@ -75,7 +76,7 @@ export function Teams() {
               </div>
 
               <div className="relative h-48 mb-8 flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-xl" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-xl mix-blend-overlay" />
                 <img 
                   src={team.carImage} 
                   alt={`${team.name} Car`} 
@@ -87,7 +88,7 @@ export function Teams() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border-t border-f1-gray pt-6">
+              <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                     <Users className="w-5 h-5 text-gray-400" />
@@ -113,7 +114,7 @@ export function Teams() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </GlassCard>
         ))}
       </div>
     </div>

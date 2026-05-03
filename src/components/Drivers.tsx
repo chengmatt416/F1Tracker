@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trophy, Flag, Medal, Loader2 } from 'lucide-react';
 import { getDriverStandings, getConstructorStandings } from '../services/f1Api';
 import { Driver, Team } from '../types';
+import { GlassCard } from './GlassCard';
 
 export function Drivers() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -42,12 +43,12 @@ export function Drivers() {
         {drivers.map((driver, index) => {
           const team = teams.find(t => t.id === driver.teamId);
           return (
-            <motion.div 
+            <GlassCard 
               key={driver.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-f1-dark rounded-2xl border border-f1-gray overflow-hidden group hover:border-white/20 transition-colors"
+              className="rounded-3xl overflow-hidden group transition-all duration-300"
             >
               <div className="relative h-48 bg-gradient-to-b from-transparent to-black/50 flex items-end justify-center pt-8">
                 <div className="absolute top-4 left-4 font-display text-6xl font-black text-white/5 group-hover:text-white/10 transition-colors">
@@ -87,25 +88,25 @@ export function Drivers() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-f1-gray/50">
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/10">
                   <div className="text-center">
-                    <Trophy className="w-4 h-4 text-yellow-500 mx-auto mb-1" />
-                    <p className="text-lg font-mono font-bold text-white">{driver.wins}</p>
+                    <Trophy className="w-4 h-4 text-yellow-500 mx-auto mb-1 drop-shadow-sm" />
+                    <p className="text-lg font-mono font-bold text-white drop-shadow-sm">{driver.wins}</p>
                     <p className="text-[10px] text-gray-500 uppercase font-bold">Wins</p>
                   </div>
-                  <div className="text-center border-l border-r border-f1-gray/50">
-                    <Medal className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                    <p className="text-lg font-mono font-bold text-white">{driver.podiums}</p>
+                  <div className="text-center border-l border-r border-white/10">
+                    <Medal className="w-4 h-4 text-gray-400 mx-auto mb-1 drop-shadow-sm" />
+                    <p className="text-lg font-mono font-bold text-white drop-shadow-sm">{driver.podiums}</p>
                     <p className="text-[10px] text-gray-500 uppercase font-bold">Podiums</p>
                   </div>
                   <div className="text-center">
-                    <Flag className="w-4 h-4 text-f1-red mx-auto mb-1" />
-                    <p className="text-sm font-medium text-white truncate px-1" title={driver.country}>{driver.country}</p>
+                    <Flag className="w-4 h-4 text-f1-red mx-auto mb-1 drop-shadow-sm" />
+                    <p className="text-sm font-medium text-white truncate px-1 drop-shadow-sm" title={driver.country}>{driver.country}</p>
                     <p className="text-[10px] text-gray-500 uppercase font-bold">Nation</p>
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </GlassCard>
           );
         })}
       </div>

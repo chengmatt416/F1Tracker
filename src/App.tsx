@@ -146,23 +146,32 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-f1-darker text-f1-light font-sans selection:bg-f1-red selection:text-white pb-20 md:pb-0">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onOpenTestPanel={() => setShowPWATest(true)} />
-      
-      <main className="flex-1 md:ml-64 min-h-screen overflow-x-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="h-full"
-          >
-            {renderContent()}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+    <div className="flex min-h-screen bg-f1-darker text-f1-light font-sans selection:bg-f1-red selection:text-white pb-20 md:pb-0 relative overflow-hidden">
+      {/* Liquid Glass Animated Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-f1-red/20 rounded-full mix-blend-screen filter blur-[100px] animate-[blob_10s_infinite]" />
+        <div className="absolute top-[20%] right-[-10%] w-[50%] h-[50%] bg-f1-purple/20 rounded-full mix-blend-screen filter blur-[120px] animate-[blob-reverse_12s_infinite]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] bg-blue-600/10 rounded-full mix-blend-screen filter blur-[150px] animate-[blob_15s_infinite]" />
+      </div>
+
+      <div className="relative z-10 flex w-full">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onOpenTestPanel={() => setShowPWATest(true)} />
+        
+        <main className="flex-1 md:ml-64 min-h-screen overflow-x-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="h-full"
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
 
       {/* Server Error Popup */}
       <AnimatePresence>

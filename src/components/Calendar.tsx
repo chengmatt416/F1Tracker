@@ -4,6 +4,7 @@ import { Calendar as CalendarIcon, MapPin, Flag, CheckCircle2, Clock, Trophy, Lo
 import { cn } from '../lib/utils';
 import { getSchedule, getRaceResults } from '../services/f1Api';
 import { Race } from '../types';
+import { GlassCard } from './GlassCard';
 
 interface RaceResultModalProps {
   race: Race;
@@ -144,11 +145,12 @@ export function Calendar() {
               </div>
               
               {/* Card */}
-              <div 
+              <GlassCard 
                 onClick={() => isCompleted && setSelectedRace(race)}
+                tiltAmount={10}
                 className={cn(
-                  "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-2xl border border-f1-gray bg-f1-dark transition-all",
-                  isCompleted ? "hover:border-f1-red/50 cursor-pointer hover:bg-f1-gray/10" : "hover:border-white/20"
+                  "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-6 rounded-3xl transition-all duration-300",
+                  isCompleted ? "hover:border-f1-red/50 cursor-pointer" : "hover:border-white/20"
                 )}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -156,34 +158,34 @@ export function Calendar() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className={cn(
                         "text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md",
-                        isCompleted ? "bg-green-500/10 text-green-500" : isLive ? "bg-f1-red/10 text-f1-red" : "bg-f1-gray text-gray-400"
+                        isCompleted ? "bg-green-500/20 text-green-400 border border-green-500/30" : isLive ? "bg-f1-red/20 text-f1-red border border-f1-red/30" : "bg-white/10 text-gray-400 border border-white/10"
                       )}>
                         {race.status}
                       </span>
                       <span className="text-sm font-mono text-gray-400">{race.date}</span>
                     </div>
-                    <h3 className="text-2xl font-display font-bold text-white uppercase tracking-wider">{race.name}</h3>
+                    <h3 className="text-2xl font-display font-bold text-white uppercase tracking-wider drop-shadow-sm">{race.name}</h3>
                     <div className="flex items-center gap-2 text-gray-400 mt-1">
                       <MapPin className="w-4 h-4" />
-                      <span className="text-sm">{race.country}</span>
+                      <span className="text-sm shadow-sm">{race.country}</span>
                     </div>
                   </div>
                   
                   <div className="w-24 h-16 opacity-50 group-hover:opacity-100 transition-opacity">
-                    <img src={race.layoutImage} alt="Circuit Layout" referrerPolicy="no-referrer" className="w-full h-full object-contain" />
+                    <img src={race.layoutImage} alt="Circuit Layout" referrerPolicy="no-referrer" className="w-full h-full object-contain filter drop-shadow-md" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-f1-gray/50">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
                   <div className="flex items-center gap-2">
-                    <Flag className="w-4 h-4 text-gray-500" />
+                    <Flag className="w-4 h-4 text-gray-400" />
                     <div>
                       <p className="text-xs text-gray-500 uppercase font-bold">Circuit</p>
-                      <p className="text-sm font-medium text-white truncate" title={race.circuit}>{race.circuit}</p>
+                      <p className="text-sm font-medium text-white xl:truncate" title={race.circuit}>{race.circuit}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-500" />
+                    <Clock className="w-4 h-4 text-gray-400" />
                     <div>
                       <p className="text-xs text-gray-500 uppercase font-bold">Distance</p>
                       <p className="text-sm font-medium text-white">{race.laps} Laps • {race.length}km</p>
@@ -192,14 +194,14 @@ export function Calendar() {
                 </div>
 
                 {isCompleted && (
-                  <div className="mt-4 pt-4 border-t border-f1-gray/50 flex items-center justify-between">
+                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
                         <Trophy className="w-4 h-4 text-yellow-500" />
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase font-bold">Winner</p>
-                        <p className="text-sm font-medium text-white uppercase tracking-wider">
+                        <p className="text-sm font-medium text-white uppercase tracking-wider drop-shadow-sm">
                           {race.winnerId?.replace('_', ' ') || 'Results Available'}
                         </p>
                       </div>
@@ -207,7 +209,7 @@ export function Calendar() {
                     <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-f1-red transition-colors" />
                   </div>
                 )}
-              </div>
+              </GlassCard>
             </motion.div>
           );
         })}
